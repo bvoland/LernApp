@@ -1,6 +1,6 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
-const APP_VERSION = "v2026.03.16-5";
+const APP_VERSION = "v2026.03.16-6";
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
@@ -260,6 +260,14 @@ function formatAnswer(question) {
     return formatMoney(question.answer);
   }
   return String(question.answer);
+}
+
+function getWrittenColumnCount(question) {
+  return Math.max(
+    String(question.left).length,
+    String(question.right).length + 1,
+    String(question.answer).length
+  );
 }
 
 function updatePotentialMinutes() {
@@ -602,12 +610,32 @@ function createQuestionVisual(question) {
   if (question.kind === "written_add") {
     const wrapper = document.createElement("div");
     wrapper.className = "written-sum";
+    const columns = getWrittenColumnCount(question);
     wrapper.innerHTML = `
       <div class="written-kind">Schriftliche Addition</div>
       <div class="written-line">${question.left}</div>
       <div class="written-line">+ ${question.right}</div>
       <div class="written-result-line"></div>
     `;
+
+    const answerRow = document.createElement("div");
+    answerRow.className = "written-answer-row";
+
+    for (let index = 0; index < columns; index += 1) {
+      const digitInput = document.createElement("input");
+      digitInput.type = "text";
+      digitInput.inputMode = "numeric";
+      digitInput.maxLength = 1;
+      digitInput.className = "written-digit-input";
+      digitInput.dataset.digitIndex = String(index);
+      digitInput.dataset.id = String(question.id);
+      digitInput.setAttribute("aria-label", `Ziffer ${index + 1} fuer Aufgabe ${question.id}`);
+      digitInput.addEventListener("input", handleAnswerInput);
+      digitInput.addEventListener("keydown", handleWrittenDigitKeydown);
+      answerRow.append(digitInput);
+    }
+
+    wrapper.append(answerRow);
     return wrapper;
   }
 
@@ -639,15 +667,18 @@ function renderQuestions() {
     const feedback = document.createElement("span");
     feedback.className = "question-feedback";
     feedback.textContent = "Noch offen";
-    const input = document.createElement("input");
-    input.type = question.kind === "money_add" ? "text" : "number";
-    input.className = "question-input";
-    input.inputMode = question.kind === "money_add" ? "decimal" : "numeric";
-    input.placeholder = question.kind === "money_add" ? "z. B. 3,50" : "Antwort";
-    input.dataset.id = String(question.id);
-    input.addEventListener("input", handleAnswerInput);
     top.append(title, feedback);
-    card.append(top, input);
+    card.append(top);
+    if (question.kind !== "written_add") {
+      const input = document.createElement("input");
+      input.type = question.kind === "money_add" ? "text" : "number";
+      input.className = "question-input";
+      input.inputMode = question.kind === "money_add" ? "decimal" : "numeric";
+      input.placeholder = question.kind === "money_add" ? "z. B. 3,50" : "Antwort";
+      input.dataset.id = String(question.id);
+      input.addEventListener("input", handleAnswerInput);
+      card.append(input);
+    }
     const visual = createQuestionVisual(question);
     if (visual) {
       card.append(visual);
@@ -659,7 +690,37 @@ function renderQuestions() {
 function handleAnswerInput(event) {
   const id = Number(event.target.dataset.id);
   const question = state.questions.find((item) => item.id === id);
-  if (question) question.userAnswer = event.target.value;
+  if (!question) return;
+
+  if (question.kind === "written_add") {
+    const card = event.target.closest(".question-card");
+    if (!card) return;
+    event.target.value = event.target.value.replace(/\D/g, "").slice(0, 1);
+    const digits = Array.from(card.querySelectorAll(".written-digit-input")).map((input) => input.value.trim());
+    const answer = digits.join("").replace(/^0+(?=\d)/, "");
+    question.userAnswer = answer;
+
+    if (event.target.value) {
+      const previous = event.target.previousElementSibling;
+      if (previous && previous.classList.contains("written-digit-input")) {
+        previous.focus();
+        previous.select();
+      }
+    }
+    return;
+  }
+
+  question.userAnswer = event.target.value;
+}
+
+function handleWrittenDigitKeydown(event) {
+  if (event.key === "Backspace" && !event.target.value) {
+    const next = event.target.nextElementSibling;
+    if (next && next.classList.contains("written-digit-input")) {
+      next.focus();
+      next.select();
+    }
+  }
 }
 
 function createRound() {

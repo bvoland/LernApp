@@ -383,6 +383,30 @@ h1 {
   border-top: 2px solid rgba(22, 50, 79, 0.35);
 }
 
+.written-answer-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.written-digit-input {
+  width: 40px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(22, 50, 79, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.written-digit-input:focus {
+  outline: 2px solid rgba(31, 111, 235, 0.35);
+  border-color: var(--accent);
+}
+
 .money-task {
   font-weight: 700;
   font-size: 1.05rem;

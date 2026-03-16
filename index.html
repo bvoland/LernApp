@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1f6feb">
-  <meta name="description" content="Mathe-Lernapp als PWA mit Belohnungssystem fuer Kinder der 3. Klasse.">
+  <meta name="description" content="Mathe-Lernapp mit Minutenkonto fuer Kinder der 1. bis 3. Klasse.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -14,14 +14,13 @@
   <div class="app-shell">
     <header class="hero">
       <div>
-        <p class="eyebrow">PWA fuer GitHub Pages</p>
         <h1>Mathe Mission</h1>
         <p class="hero-copy">
           Aufgaben loesen, die Zielquote erreichen und dabei Minuten fuer spaetere Medienzeit ansparen.
         </p>
       </div>
       <div class="hero-card">
-        <div class="badge">3. Klasse</div>
+        <div id="grade-badge" class="badge">3. Klasse</div>
         <ul class="skills">
           <li>Addition</li>
           <li>Subtraktion</li>
@@ -49,8 +48,25 @@
 
         <fieldset id="settings-fields" disabled>
           <label class="field">
-            <span>Name</span>
-            <input id="child-name" type="text" maxlength="30" placeholder="z. B. Leo">
+            <span>Kind</span>
+            <select id="child-select"></select>
+          </label>
+
+          <label class="field">
+            <span>Neues Kind anlegen</span>
+            <div class="inline-row">
+              <input id="child-name" type="text" maxlength="30" placeholder="Neuer Name">
+              <button id="add-child-btn" class="secondary-btn" type="button">Hinzufuegen</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Klassenstufe</span>
+            <select id="child-grade">
+              <option value="1">1. Klasse</option>
+              <option value="2">2. Klasse</option>
+              <option value="3">3. Klasse</option>
+            </select>
           </label>
 
           <label class="field">
@@ -153,7 +169,7 @@
         <div class="section-head">
           <div>
             <h2>Statistik</h2>
-            <p class="section-copy">Lernfortschritt fuer heute, diesen Monat und insgesamt.</p>
+            <p id="stats-copy" class="section-copy">Lernfortschritt fuer heute, diesen Monat und insgesamt.</p>
           </div>
         </div>
 

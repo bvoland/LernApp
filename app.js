@@ -3,18 +3,27 @@ const DEFAULT_REWARD_TARGET = 95;
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
-const OPERATIONS = ["+", "-", "*", "/"];
+const PROFILES_STORAGE_KEY = "mathe-mission-profiles";
+const DEFAULT_PROFILES = [
+  { name: "Lukas", grade: 3 },
+  { name: "Amelie", grade: 3 },
+  { name: "Kathi", grade: 3 },
+  { name: "Benny", grade: 3 }
+];
 
 const startBtn = document.getElementById("start-btn");
 const submitBtn = document.getElementById("submit-btn");
 const nextRoundBtn = document.getElementById("next-round-btn");
 const unlockBtn = document.getElementById("unlock-btn");
 const redeemBtn = document.getElementById("redeem-btn");
+const addChildBtn = document.getElementById("add-child-btn");
 const parentPinInput = document.getElementById("parent-pin");
 const pinFeedback = document.getElementById("pin-feedback");
 const settingsState = document.getElementById("settings-state");
 const settingsFields = document.getElementById("settings-fields");
 const childNameInput = document.getElementById("child-name");
+const childSelect = document.getElementById("child-select");
+const childGradeSelect = document.getElementById("child-grade");
 const questionCountInput = document.getElementById("question-count");
 const targetPercentInput = document.getElementById("target-percent");
 const quizForm = document.getElementById("quiz-form");
@@ -41,11 +50,15 @@ const statsMonthError = document.getElementById("stats-month-error");
 const statsAllTotal = document.getElementById("stats-all-total");
 const statsAllCorrect = document.getElementById("stats-all-correct");
 const statsAllError = document.getElementById("stats-all-error");
+const gradeBadge = document.getElementById("grade-badge");
+const statsCopy = document.getElementById("stats-copy");
 
 const state = {
   round: 1,
   questionsPerRound: 20,
   rewardTarget: DEFAULT_REWARD_TARGET,
+  selectedChild: "Lukas",
+  profiles: [],
   questions: [],
   isRoundActive: false,
   settingsUnlocked: false,
@@ -55,47 +68,12 @@ const state = {
   storageMode: "local"
 };
 
-const NUMBER_RANGES = {
-  small: { min: 0, max: 20 },
-  medium: { min: 21, max: 100 },
-  large: { min: 101, max: 1000 }
-};
-
-function loadSettings() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    childNameInput.value = saved.childName || "";
-    questionCountInput.value = saved.questionsPerRound || 20;
-    targetPercentInput.value = saved.rewardTarget || DEFAULT_REWARD_TARGET;
-    state.questionsPerRound = Number(saved.questionsPerRound) || 20;
-    state.rewardTarget = Number(saved.rewardTarget) || DEFAULT_REWARD_TARGET;
-    state.round = saved.round || 1;
-  } catch (error) {
-    console.warn("Konnte gespeicherte Einstellungen nicht laden.", error);
-  }
-
-  roundLabel.textContent = String(state.round);
-  targetRate.textContent = `${state.rewardTarget}%`;
-  updatePotentialMinutes();
+function getProfile(name) {
+  return state.profiles.find((profile) => profile.name === name) || { name, grade: 3 };
 }
 
-function saveSettings() {
-  state.questionsPerRound = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
-  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
-  questionCountInput.value = String(state.questionsPerRound);
-  targetPercentInput.value = String(state.rewardTarget);
-  targetRate.textContent = `${state.rewardTarget}%`;
-  updatePotentialMinutes();
-
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      childName: childNameInput.value.trim(),
-      questionsPerRound: state.questionsPerRound,
-      rewardTarget: state.rewardTarget,
-      round: state.round
-    })
-  );
+function currentGrade() {
+  return Number(getProfile(state.selectedChild).grade || 3);
 }
 
 function readStorageArray(key) {
@@ -108,8 +86,75 @@ function readStorageArray(key) {
   }
 }
 
-function writeStorageArray(key, entries, limit = 100) {
+function writeStorageArray(key, entries, limit = 200) {
   localStorage.setItem(key, JSON.stringify(entries.slice(0, limit)));
+}
+
+function loadProfiles() {
+  const saved = readStorageArray(PROFILES_STORAGE_KEY);
+  const merged = [...DEFAULT_PROFILES];
+
+  saved.forEach((profile) => {
+    if (!merged.some((item) => item.name === profile.name)) {
+      merged.push({ name: profile.name, grade: Number(profile.grade) || 3 });
+    }
+  });
+
+  state.profiles = merged;
+  writeStorageArray(PROFILES_STORAGE_KEY, merged, 50);
+}
+
+function saveProfiles() {
+  writeStorageArray(PROFILES_STORAGE_KEY, state.profiles, 50);
+}
+
+function renderChildOptions() {
+  childSelect.innerHTML = "";
+  state.profiles.forEach((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.name;
+    option.textContent = `${profile.name} (${profile.grade}. Klasse)`;
+    childSelect.append(option);
+  });
+  childSelect.value = state.selectedChild;
+  childGradeSelect.value = String(currentGrade());
+  gradeBadge.textContent = `${currentGrade()}. Klasse`;
+  statsCopy.textContent = `Lernfortschritt von ${state.selectedChild} fuer heute, diesen Monat und insgesamt.`;
+}
+
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    questionCountInput.value = saved.questionsPerRound || 20;
+    targetPercentInput.value = saved.rewardTarget || DEFAULT_REWARD_TARGET;
+    state.questionsPerRound = Number(saved.questionsPerRound) || 20;
+    state.rewardTarget = Number(saved.rewardTarget) || DEFAULT_REWARD_TARGET;
+    state.round = saved.round || 1;
+    state.selectedChild = saved.selectedChild || DEFAULT_PROFILES[0].name;
+  } catch (error) {
+    console.warn("Konnte gespeicherte Einstellungen nicht laden.", error);
+  }
+
+  roundLabel.textContent = String(state.round);
+  targetRate.textContent = `${state.rewardTarget}%`;
+}
+
+function saveSettings() {
+  state.questionsPerRound = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
+  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
+  questionCountInput.value = String(state.questionsPerRound);
+  targetPercentInput.value = String(state.rewardTarget);
+  targetRate.textContent = `${state.rewardTarget}%`;
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      questionsPerRound: state.questionsPerRound,
+      rewardTarget: state.rewardTarget,
+      round: state.round,
+      selectedChild: state.selectedChild
+    })
+  );
 }
 
 function setStorageMode(mode) {
@@ -119,149 +164,8 @@ function setStorageMode(mode) {
     storageState.classList.add("unlocked");
     return;
   }
-
   storageState.textContent = "Nur lokal";
   storageState.classList.remove("unlocked");
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function pickRangeKey() {
-  const roll = Math.random();
-  if (roll < 0.4) return "small";
-  if (roll < 0.8) return "medium";
-  return "large";
-}
-
-function randomFromRange(rangeKey, maxCap = Number.MAX_SAFE_INTEGER) {
-  const range = NUMBER_RANGES[rangeKey];
-  const max = Math.min(range.max, maxCap);
-  const min = Math.min(range.min, max);
-  return randomInt(min, max);
-}
-
-function buildAdditionQuestion(rangeKey) {
-  const left = randomFromRange(rangeKey, 950);
-  const remaining = 1000 - left;
-  const rightRange = remaining < 20 ? "small" : Math.random() < 0.5 ? rangeKey : pickRangeKey();
-  const right = randomFromRange(rightRange, remaining);
-  return { left, right, operation: "+", answer: left + right };
-}
-
-function buildSubtractionQuestion(rangeKey) {
-  const left = randomFromRange(rangeKey);
-  const rightRange = Math.random() < 0.65 ? rangeKey : pickRangeKey();
-  const right = randomFromRange(rightRange, left);
-  return { left, right, operation: "-", answer: left - right };
-}
-
-function buildMultiplicationQuestion(rangeKey) {
-  const factorsByRange = {
-    small: { leftMin: 1, leftMax: 10, rightMin: 1, rightMax: 10 },
-    medium: { leftMin: 2, leftMax: 12, rightMin: 2, rightMax: 12 },
-    large: { leftMin: 5, leftMax: 20, rightMin: 2, rightMax: 12 }
-  };
-
-  const range = factorsByRange[rangeKey];
-  const left = randomInt(range.leftMin, range.leftMax);
-  const maxRight = Math.min(range.rightMax, Math.floor(1000 / left));
-  const right = randomInt(range.rightMin, Math.max(range.rightMin, maxRight));
-  return { left, right, operation: "*", answer: left * right };
-}
-
-function buildDivisionQuestion(rangeKey) {
-  const divisorsByRange = {
-    small: { divisorMin: 1, divisorMax: 10, resultMin: 1, resultMax: 10 },
-    medium: { divisorMin: 2, divisorMax: 12, resultMin: 2, resultMax: 12 },
-    large: { divisorMin: 2, divisorMax: 12, resultMin: 5, resultMax: 20 }
-  };
-
-  const range = divisorsByRange[rangeKey];
-  const right = randomInt(range.divisorMin, range.divisorMax);
-  const maxResult = Math.min(range.resultMax, Math.floor(1000 / right));
-  const result = randomInt(range.resultMin, Math.max(range.resultMin, maxResult));
-  return { left: right * result, right, operation: "/", answer: result };
-}
-
-function questionKey(question) {
-  return `${question.operation}:${question.left}:${question.right}`;
-}
-
-function buildQuestion(usedKeys) {
-  let attempts = 0;
-  while (attempts < 200) {
-    const operation = OPERATIONS[randomInt(0, OPERATIONS.length - 1)];
-    const rangeKey = pickRangeKey();
-    let question;
-
-    if (operation === "+") question = buildAdditionQuestion(rangeKey);
-    else if (operation === "-") question = buildSubtractionQuestion(rangeKey);
-    else if (operation === "*") question = buildMultiplicationQuestion(rangeKey);
-    else question = buildDivisionQuestion(rangeKey);
-
-    const key = questionKey(question);
-    if (!usedKeys.has(key)) {
-      usedKeys.add(key);
-      return question;
-    }
-    attempts += 1;
-  }
-  throw new Error("Konnte keine eindeutige Aufgabe fuer diese Runde erzeugen.");
-}
-
-function getOperationSymbol(operation) {
-  if (operation === "*") return "x";
-  if (operation === "/") return ":";
-  return operation;
-}
-
-function getGreeting() {
-  const name = childNameInput.value.trim();
-  return name ? `${name},` : "Los geht's,";
-}
-
-function renderQuestions() {
-  quizForm.innerHTML = "";
-  state.questions.forEach((question) => {
-    const card = document.createElement("label");
-    card.className = "question-card";
-    card.dataset.id = String(question.id);
-
-    const top = document.createElement("div");
-    top.className = "question-top";
-
-    const title = document.createElement("span");
-    title.className = "question-label";
-    title.textContent = `${question.id}. ${question.left} ${getOperationSymbol(question.operation)} ${question.right} =`;
-
-    const feedback = document.createElement("span");
-    feedback.className = "question-feedback";
-    feedback.textContent = "Noch offen";
-
-    const input = document.createElement("input");
-    input.type = "number";
-    input.className = "question-input";
-    input.inputMode = "numeric";
-    input.placeholder = "Antwort";
-    input.dataset.id = String(question.id);
-    input.addEventListener("input", handleAnswerInput);
-
-    top.append(title, feedback);
-    card.append(top, input);
-    quizForm.append(card);
-  });
-}
-
-function handleAnswerInput(event) {
-  const id = Number(event.target.dataset.id);
-  const question = state.questions.find((item) => item.id === id);
-  if (question) question.userAnswer = event.target.value;
-}
-
-function updateStatus(message) {
-  statusBanner.textContent = message;
 }
 
 function formatHistoryDate(isoString) {
@@ -285,17 +189,13 @@ function calculateEarnedMinutes(questionCount) {
 
 function updatePotentialMinutes() {
   const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || state.questionsPerRound || 20));
-  const minutes = calculateEarnedMinutes(questionCount);
-  potentialMinutes.textContent = formatMinutes(minutes);
+  potentialMinutes.textContent = formatMinutes(calculateEarnedMinutes(questionCount));
   timerPill.textContent = formatMinutes(getAvailableMinutes());
 }
 
 function localDateKey(value) {
   const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function monthKey(value) {
@@ -303,9 +203,17 @@ function monthKey(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function childHistory() {
+  return state.history.filter((entry) => (entry.child_name || DEFAULT_PROFILES[0].name) === state.selectedChild);
+}
+
+function childRedemptions() {
+  return state.redemptions.filter((entry) => (entry.child_name || DEFAULT_PROFILES[0].name) === state.selectedChild);
+}
+
 function getAvailableMinutes() {
-  const earned = state.history.reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
-  const redeemed = state.redemptions.reduce((sum, entry) => sum + Number(entry.minutes_redeemed || 0), 0);
+  const earned = childHistory().reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+  const redeemed = childRedemptions().reduce((sum, entry) => sum + Number(entry.minutes_redeemed || 0), 0);
   return Math.max(0, earned - redeemed);
 }
 
@@ -319,13 +227,10 @@ function buildStats(entries) {
 function updateAnalytics() {
   const today = localDateKey(Date.now());
   const month = monthKey(Date.now());
-  const dayEntries = state.history.filter((entry) => localDateKey(entry.created_at) === today);
-  const monthEntries = state.history.filter((entry) => monthKey(entry.created_at) === month);
-  const allEntries = state.history;
-
-  const dayStats = buildStats(dayEntries);
-  const monthStats = buildStats(monthEntries);
-  const allStats = buildStats(allEntries);
+  const entries = childHistory();
+  const dayStats = buildStats(entries.filter((entry) => localDateKey(entry.created_at) === today));
+  const monthStats = buildStats(entries.filter((entry) => monthKey(entry.created_at) === month));
+  const allStats = buildStats(entries);
 
   statsDayTotal.textContent = String(dayStats.totalQuestions);
   statsDayCorrect.textContent = String(dayStats.totalCorrect);
@@ -340,10 +245,11 @@ function updateAnalytics() {
 
 function updateMinuteSummary() {
   const todayKey = localDateKey(Date.now());
-  const todayMinutes = state.history
+  const entries = childHistory();
+  const todayMinutes = entries
     .filter((entry) => localDateKey(entry.created_at) === todayKey)
     .reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
-  const totalMinutes = state.history.reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+  const totalMinutes = entries.reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
   const available = getAvailableMinutes();
 
   availableMinutes.textContent = formatMinutes(available);
@@ -354,17 +260,17 @@ function updateMinuteSummary() {
 
 function renderHistory() {
   historyList.innerHTML = "";
-  if (!state.history.length && !state.redemptions.length) {
-    historyList.innerHTML = '<p class="empty-history">Noch keine gespeicherten Runden.</p>';
+  const combined = [
+    ...childHistory().map((entry) => ({ type: "round", ...entry })),
+    ...childRedemptions().map((entry) => ({ type: "redeem", ...entry }))
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  if (!combined.length) {
+    historyList.innerHTML = `<p class="empty-history">Noch keine gespeicherten Runden fuer ${state.selectedChild}.</p>`;
     updateMinuteSummary();
     updateAnalytics();
     return;
   }
-
-  const combined = [
-    ...state.history.map((entry) => ({ type: "round", ...entry })),
-    ...state.redemptions.map((entry) => ({ type: "redeem", ...entry }))
-  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   combined.slice(0, 12).forEach((entry) => {
     const item = document.createElement("article");
@@ -373,7 +279,7 @@ function renderHistory() {
     if (entry.type === "redeem") {
       item.innerHTML = `
         <div class="history-main">
-          <strong>Minuten eingeloest</strong>
+          <strong>${entry.child_name} - Minuten eingeloest</strong>
           <span>${formatMinutes(Number(entry.minutes_redeemed || 0))}</span>
         </div>
         <div class="history-meta">
@@ -384,7 +290,7 @@ function renderHistory() {
     } else {
       item.innerHTML = `
         <div class="history-main">
-          <strong>${entry.child_name || "Kind"} - Runde ${entry.round_number}</strong>
+          <strong>${entry.child_name} - Runde ${entry.round_number}</strong>
           <span>${entry.correct_total}/${entry.questions_total} richtig (${entry.score_percent}%)</span>
         </div>
         <div class="history-meta">
@@ -402,14 +308,170 @@ function renderHistory() {
   updateAnalytics();
 }
 
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function buildQuestionForGrade(grade, usedKeys) {
+  let attempts = 0;
+  while (attempts < 200) {
+    let question;
+
+    if (grade === 1) {
+      if (Math.random() < 0.5) {
+        const left = randomInt(0, 20);
+        const right = randomInt(0, 20 - left);
+        question = { left, right, operation: "+", answer: left + right };
+      } else {
+        const left = randomInt(0, 20);
+        const right = randomInt(0, left);
+        question = { left, right, operation: "-", answer: left - right };
+      }
+    } else if (grade === 2) {
+      const ops = ["+", "-", "*", "/"];
+      const operation = ops[randomInt(0, ops.length - 1)];
+      if (operation === "+") {
+        const left = randomInt(0, 80);
+        const right = randomInt(0, 100 - left);
+        question = { left, right, operation, answer: left + right };
+      } else if (operation === "-") {
+        const left = randomInt(0, 100);
+        const right = randomInt(0, left);
+        question = { left, right, operation, answer: left - right };
+      } else if (operation === "*") {
+        const left = randomInt(1, 10);
+        const right = randomInt(1, 10);
+        question = { left, right, operation, answer: left * right };
+      } else {
+        const right = randomInt(1, 10);
+        const answer = randomInt(1, 10);
+        question = { left: right * answer, right, operation, answer };
+      }
+    } else {
+      const rangeKeyRoll = Math.random();
+      const rangeKey = rangeKeyRoll < 0.4 ? "small" : rangeKeyRoll < 0.8 ? "medium" : "large";
+      const operation = ["+", "-", "*", "/"][randomInt(0, 3)];
+      if (operation === "+") question = buildAdditionQuestion(rangeKey);
+      else if (operation === "-") question = buildSubtractionQuestion(rangeKey);
+      else if (operation === "*") question = buildMultiplicationQuestion(rangeKey);
+      else question = buildDivisionQuestion(rangeKey);
+    }
+
+    const key = `${question.operation}:${question.left}:${question.right}`;
+    if (!usedKeys.has(key)) {
+      usedKeys.add(key);
+      return question;
+    }
+    attempts += 1;
+  }
+  throw new Error("Konnte keine eindeutige Aufgabe fuer diese Runde erzeugen.");
+}
+
+const NUMBER_RANGES = {
+  small: { min: 0, max: 20 },
+  medium: { min: 21, max: 100 },
+  large: { min: 101, max: 1000 }
+};
+
+function randomFromRange(rangeKey, maxCap = Number.MAX_SAFE_INTEGER) {
+  const range = NUMBER_RANGES[rangeKey];
+  const max = Math.min(range.max, maxCap);
+  const min = Math.min(range.min, max);
+  return randomInt(min, max);
+}
+
+function buildAdditionQuestion(rangeKey) {
+  const left = randomFromRange(rangeKey, 950);
+  const remaining = 1000 - left;
+  const rightRange = remaining < 20 ? "small" : Math.random() < 0.5 ? rangeKey : ["small", "medium", "large"][randomInt(0, 2)];
+  const right = randomFromRange(rightRange, remaining);
+  return { left, right, operation: "+", answer: left + right };
+}
+
+function buildSubtractionQuestion(rangeKey) {
+  const left = randomFromRange(rangeKey);
+  const right = randomFromRange(Math.random() < 0.65 ? rangeKey : ["small", "medium", "large"][randomInt(0, 2)], left);
+  return { left, right, operation: "-", answer: left - right };
+}
+
+function buildMultiplicationQuestion(rangeKey) {
+  const map = {
+    small: { leftMin: 1, leftMax: 10, rightMin: 1, rightMax: 10 },
+    medium: { leftMin: 2, leftMax: 12, rightMin: 2, rightMax: 12 },
+    large: { leftMin: 5, leftMax: 20, rightMin: 2, rightMax: 12 }
+  };
+  const range = map[rangeKey];
+  const left = randomInt(range.leftMin, range.leftMax);
+  const maxRight = Math.min(range.rightMax, Math.floor(1000 / left));
+  const right = randomInt(range.rightMin, Math.max(range.rightMin, maxRight));
+  return { left, right, operation: "*", answer: left * right };
+}
+
+function buildDivisionQuestion(rangeKey) {
+  const map = {
+    small: { divisorMin: 1, divisorMax: 10, resultMin: 1, resultMax: 10 },
+    medium: { divisorMin: 2, divisorMax: 12, resultMin: 2, resultMax: 12 },
+    large: { divisorMin: 2, divisorMax: 12, resultMin: 5, resultMax: 20 }
+  };
+  const range = map[rangeKey];
+  const right = randomInt(range.divisorMin, range.divisorMax);
+  const maxResult = Math.min(range.resultMax, Math.floor(1000 / right));
+  const answer = randomInt(range.resultMin, Math.max(range.resultMin, maxResult));
+  return { left: right * answer, right, operation: "/", answer };
+}
+
+function getOperationSymbol(operation) {
+  if (operation === "*") return "x";
+  if (operation === "/") return ":";
+  return operation;
+}
+
+function getGreeting() {
+  return `${state.selectedChild},`;
+}
+
+function renderQuestions() {
+  quizForm.innerHTML = "";
+  state.questions.forEach((question) => {
+    const card = document.createElement("label");
+    card.className = "question-card";
+    card.dataset.id = String(question.id);
+    const top = document.createElement("div");
+    top.className = "question-top";
+    const title = document.createElement("span");
+    title.className = "question-label";
+    title.textContent = `${question.id}. ${question.left} ${getOperationSymbol(question.operation)} ${question.right} =`;
+    const feedback = document.createElement("span");
+    feedback.className = "question-feedback";
+    feedback.textContent = "Noch offen";
+    const input = document.createElement("input");
+    input.type = "number";
+    input.className = "question-input";
+    input.inputMode = "numeric";
+    input.placeholder = "Antwort";
+    input.dataset.id = String(question.id);
+    input.addEventListener("input", handleAnswerInput);
+    top.append(title, feedback);
+    card.append(top, input);
+    quizForm.append(card);
+  });
+}
+
+function handleAnswerInput(event) {
+  const id = Number(event.target.dataset.id);
+  const question = state.questions.find((item) => item.id === id);
+  if (question) question.userAnswer = event.target.value;
+}
+
 function createRound() {
   saveSettings();
   const usedKeys = new Set();
+  const grade = currentGrade();
 
   try {
     state.questions = Array.from({ length: state.questionsPerRound }, (_, index) => ({
       id: index + 1,
-      ...buildQuestion(usedKeys),
+      ...buildQuestionForGrade(grade, usedKeys),
       userAnswer: "",
       isCorrect: null
     }));
@@ -426,7 +488,7 @@ function createRound() {
   submitBtn.disabled = false;
   nextRoundBtn.hidden = true;
   speakRoundIntro();
-  updateStatus(`${getGreeting()} loese jetzt ${state.questionsPerRound} Aufgaben. Bei mindestens ${state.rewardTarget}% bekommst du ${formatMinutes(calculateEarnedMinutes(state.questionsPerRound))} gutgeschrieben.`);
+  updateStatus(`${getGreeting()} loese jetzt ${state.questionsPerRound} Aufgaben fuer die ${grade}. Klasse. Bei mindestens ${state.rewardTarget}% bekommst du ${formatMinutes(calculateEarnedMinutes(state.questionsPerRound))} gutgeschrieben.`);
 }
 
 function updateQuestionFeedback() {
@@ -435,21 +497,20 @@ function updateQuestionFeedback() {
     if (!card) return;
     const feedback = card.querySelector(".question-feedback");
     card.classList.remove("correct", "wrong");
-
     if (question.isCorrect) {
       card.classList.add("correct");
       feedback.textContent = "Richtig";
-      return;
+    } else {
+      card.classList.add("wrong");
+      feedback.textContent = `Richtige Antwort: ${question.answer}`;
     }
-
-    card.classList.add("wrong");
-    feedback.textContent = `Richtige Antwort: ${question.answer}`;
   });
 }
 
 function currentRoundPayload(correct, percent, earnedMinutes) {
   return {
-    child_name: childNameInput.value.trim() || null,
+    child_name: state.selectedChild,
+    grade_level: currentGrade(),
     round_number: state.round,
     questions_total: state.questions.length,
     correct_total: correct,
@@ -470,41 +531,37 @@ function currentRoundPayload(correct, percent, earnedMinutes) {
 }
 
 async function saveRoundResult(entry) {
-  state.history = [entry, ...state.history].slice(0, 100);
-  writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
+  state.history = [entry, ...state.history].slice(0, 200);
+  writeStorageArray(HISTORY_STORAGE_KEY, state.history, 200);
   renderHistory();
-
   if (!state.api || state.storageMode !== "cloud") return;
-
   try {
     await state.api.createLearningRound(entry);
     const data = await state.api.listAll();
     state.history = data.rounds;
     state.redemptions = data.redemptions;
-    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
-    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 200);
+    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 200);
     renderHistory();
     setStorageMode("cloud");
   } catch (error) {
-    console.warn("Supabase-Speicherung fehlgeschlagen, lokaler Fallback bleibt aktiv.", error);
+    console.warn("Supabase-Speicherung fehlgeschlagen.", error);
     setStorageMode("local");
   }
 }
 
 async function saveRedemption(entry) {
-  state.redemptions = [entry, ...state.redemptions].slice(0, 100);
-  writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+  state.redemptions = [entry, ...state.redemptions].slice(0, 200);
+  writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 200);
   renderHistory();
-
   if (!state.api || state.storageMode !== "cloud") return;
-
   try {
     await state.api.createRedemption(entry);
     const data = await state.api.listAll();
     state.history = data.rounds;
     state.redemptions = data.redemptions;
-    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
-    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 200);
+    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 200);
     renderHistory();
     setStorageMode("cloud");
   } catch (error) {
@@ -515,7 +572,6 @@ async function saveRedemption(entry) {
 
 function evaluateRound() {
   if (!state.isRoundActive) return;
-
   let correct = 0;
   state.questions.forEach((question) => {
     const numericAnswer = Number(question.userAnswer);
@@ -535,9 +591,9 @@ function evaluateRound() {
   nextRoundBtn.hidden = false;
 
   if (earnedMinutes > 0) {
-    rewardText.textContent = `Heute wurden gerade ${formatMinutes(earnedMinutes)} gutgeschrieben.`;
+    rewardText.textContent = `${state.selectedChild} hat gerade ${formatMinutes(earnedMinutes)} gutgeschrieben bekommen.`;
     overlayMessage.textContent = "Die Minuten bleiben angespart, bis ihr sie mit Elternfreigabe einloest.";
-    updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden dem Minutenkonto hinzugefuegt.`);
+    updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden ${state.selectedChild} gutgeschrieben.`);
   } else {
     rewardText.textContent = "Diese Runde war noch unter der Zielquote.";
     overlayMessage.textContent = `Es wurden keine Minuten gutgeschrieben. Noch einmal versuchen und mindestens ${state.rewardTarget}% erreichen.`;
@@ -556,7 +612,6 @@ function unlockSettings() {
     setSettingsLock(false);
     return;
   }
-
   parentPinInput.value = "";
   pinFeedback.textContent = "Einstellungen sind entsperrt.";
   setSettingsLock(true);
@@ -590,25 +645,50 @@ function speakRoundIntro() {
 async function redeemMinutes() {
   const available = getAvailableMinutes();
   if (available <= 0) {
-    updateStatus("Es sind aktuell keine Minuten zum Einloesen vorhanden.");
+    updateStatus(`Fuer ${state.selectedChild} sind aktuell keine Minuten zum Einloesen vorhanden.`);
     return;
   }
-
-  const enteredPin = window.prompt("Eltern-PIN zum Einloesen eingeben:");
+  const enteredPin = window.prompt(`Eltern-PIN zum Einloesen fuer ${state.selectedChild} eingeben:`);
   if (enteredPin !== PARENT_PIN) {
     updateStatus("Einloesen abgebrochen: Eltern-PIN war nicht korrekt.");
     return;
   }
-
   const entry = {
+    child_name: state.selectedChild,
     minutes_redeemed: available,
     created_at: new Date().toISOString()
   };
-
   await saveRedemption(entry);
-  rewardText.textContent = `${formatMinutes(available)} wurden eingeloest und das verfuegbare Konto auf null gesetzt.`;
-  overlayMessage.textContent = "Die Lernstatistik bleibt erhalten. Nur das verfuegbare Minutenkonto wurde zurueckgesetzt.";
-  updateStatus(`Einloesung bestaetigt. ${formatMinutes(available)} wurden vom verfuegbaren Minutenkonto abgezogen.`);
+  rewardText.textContent = `${formatMinutes(available)} wurden fuer ${state.selectedChild} eingeloest.`;
+  overlayMessage.textContent = "Die Lernstatistik bleibt erhalten. Nur das verfuegbare Minutenkonto dieses Kindes wurde zurueckgesetzt.";
+  updateStatus(`Einloesung bestaetigt. ${formatMinutes(available)} wurden vom verfuegbaren Minutenkonto von ${state.selectedChild} abgezogen.`);
+}
+
+function selectChild(name) {
+  state.selectedChild = name;
+  renderChildOptions();
+  renderHistory();
+  updatePotentialMinutes();
+  saveSettings();
+}
+
+function addChild() {
+  const name = childNameInput.value.trim();
+  if (!name) return;
+  if (!state.profiles.some((profile) => profile.name === name)) {
+    state.profiles.push({ name, grade: 3 });
+    saveProfiles();
+  }
+  childNameInput.value = "";
+  selectChild(name);
+}
+
+function updateChildGrade() {
+  const profile = getProfile(state.selectedChild);
+  profile.grade = Number(childGradeSelect.value) || 3;
+  saveProfiles();
+  renderChildOptions();
+  updateStatus(`${state.selectedChild} ist jetzt fuer Aufgaben der ${profile.grade}. Klasse freigegeben.`);
 }
 
 function createLocalApi() {
@@ -620,12 +700,10 @@ function createLocalApi() {
       };
     },
     async createLearningRound(entry) {
-      const current = readStorageArray(HISTORY_STORAGE_KEY);
-      writeStorageArray(HISTORY_STORAGE_KEY, [entry, ...current], 100);
+      writeStorageArray(HISTORY_STORAGE_KEY, [entry, ...readStorageArray(HISTORY_STORAGE_KEY)], 200);
     },
     async createRedemption(entry) {
-      const current = readStorageArray(REDEMPTION_STORAGE_KEY);
-      writeStorageArray(REDEMPTION_STORAGE_KEY, [entry, ...current], 100);
+      writeStorageArray(REDEMPTION_STORAGE_KEY, [entry, ...readStorageArray(REDEMPTION_STORAGE_KEY)], 200);
     }
   };
 }
@@ -646,47 +724,35 @@ function createSupabaseApi(cfg) {
         ...(options && options.headers ? options.headers : {})
       }
     });
-
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`HTTP ${response.status}: ${text}`);
     }
-
     return response.status === 204 ? null : response.json();
   }
 
   return {
     async listAll() {
       const roundsQuery =
-        "?select=id,created_at,child_name,round_number,questions_total,correct_total,score_percent,reward_unlocked,reward_target,earned_minutes" +
-        "&order=created_at.desc" +
-        "&limit=100";
+        "?select=id,created_at,child_name,grade_level,round_number,questions_total,correct_total,score_percent,reward_unlocked,reward_target,earned_minutes" +
+        "&order=created_at.desc&limit=200";
       const redemptionsQuery =
-        "?select=id,created_at,minutes_redeemed" +
-        "&order=created_at.desc" +
-        "&limit=100";
-
+        "?select=id,created_at,child_name,minutes_redeemed" +
+        "&order=created_at.desc&limit=200";
       const [rounds, redemptions] = await Promise.all([
         request(roundsBase + roundsQuery, { method: "GET" }),
         request(redemptionsBase + redemptionsQuery, { method: "GET" })
       ]);
-
       return {
         rounds: Array.isArray(rounds) ? rounds : [],
         redemptions: Array.isArray(redemptions) ? redemptions : []
       };
     },
     async createLearningRound(entry) {
-      await request(roundsBase, {
-        method: "POST",
-        body: JSON.stringify([entry])
-      });
+      await request(roundsBase, { method: "POST", body: JSON.stringify([entry]) });
     },
     async createRedemption(entry) {
-      await request(redemptionsBase, {
-        method: "POST",
-        body: JSON.stringify([entry])
-      });
+      await request(redemptionsBase, { method: "POST", body: JSON.stringify([entry]) });
     }
   };
 }
@@ -699,18 +765,16 @@ async function loadHistory() {
   const cfg = window.APP_CONFIG || {};
   const hasSupabase = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey);
   state.api = hasSupabase ? createSupabaseApi(cfg) : createLocalApi();
-
   if (!hasSupabase) {
     setStorageMode("local");
     return;
   }
-
   try {
     const data = await state.api.listAll();
     state.history = data.rounds;
     state.redemptions = data.redemptions;
-    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
-    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 200);
+    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 200);
     renderHistory();
     setStorageMode("cloud");
   } catch (error) {
@@ -733,9 +797,10 @@ startBtn.addEventListener("click", createRound);
 submitBtn.addEventListener("click", evaluateRound);
 nextRoundBtn.addEventListener("click", createRound);
 unlockBtn.addEventListener("click", toggleSettingsLock);
-redeemBtn.addEventListener("click", () => {
-  void redeemMinutes();
-});
+redeemBtn.addEventListener("click", () => { void redeemMinutes(); });
+addChildBtn.addEventListener("click", addChild);
+childSelect.addEventListener("change", (event) => selectChild(event.target.value));
+childGradeSelect.addEventListener("change", updateChildGrade);
 parentPinInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -743,12 +808,17 @@ parentPinInput.addEventListener("keydown", (event) => {
   }
 });
 
-[childNameInput, questionCountInput, targetPercentInput].forEach((element) => {
+[questionCountInput, targetPercentInput].forEach((element) => {
   element.addEventListener("change", saveSettings);
   element.addEventListener("input", updatePotentialMinutes);
 });
 
+loadProfiles();
 loadSettings();
+if (!state.profiles.some((profile) => profile.name === state.selectedChild)) {
+  state.selectedChild = state.profiles[0].name;
+}
+renderChildOptions();
 setSettingsLock(false);
 rewardText.textContent = "Ab der Zielquote werden Minuten gutgeschrieben. Je 10 Aufgaben gibt es 1 Minute.";
 overlayMessage.textContent = "Neue Minuten werden nach jeder erfolgreichen Runde automatisch dem Tageskonto gutgeschrieben.";

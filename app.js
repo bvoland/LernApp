@@ -5,9 +5,32 @@ const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const OPERATIONS = ["+", "-", "*", "/"];
 const TOPICS = [
-  { key: "minecraft", label: "Minecraft", defaultUrl: "https://www.youtube.com/minecraft" },
-  { key: "robotik", label: "Robotik", defaultUrl: "https://www.youtube.com/watch?v=PvOT2G8ShdQ" },
-  { key: "lego", label: "Lego", defaultUrl: "https://www.youtube.com/LEGO" }
+  {
+    key: "minecraft",
+    label: "Minecraft",
+    defaultUrls: [
+      "https://www.youtube.com/watch?v=9aDWhUJdYDk",
+      "https://www.youtube.com/watch?v=rn4rPCTrpLM",
+      "https://www.youtube.com/watch?v=8jI4Qfj7U6Q"
+    ]
+  },
+  {
+    key: "robotik",
+    label: "Robotik",
+    defaultUrls: [
+      "https://www.youtube.com/watch?v=okxgZw_Hbik",
+      "https://www.youtube.com/watch?v=FZYvmZfb904"
+    ]
+  },
+  {
+    key: "lego",
+    label: "Lego",
+    defaultUrls: [
+      "https://www.youtube.com/watch?v=D7z8iXqjIkE",
+      "https://www.youtube.com/watch?v=MHPhN8Z8Kug",
+      "https://www.youtube.com/watch?v=RK0USYA3Ouo"
+    ]
+  }
 ];
 
 const startBtn = document.getElementById("start-btn");
@@ -60,6 +83,8 @@ const state = {
   pendingVideoId: "",
   activeVideoId: "",
   activeVideoSource: null,
+  activeVideoUrl: "",
+  activeFallbackIndex: 0,
   player: null,
   history: [],
   api: null,
@@ -84,9 +109,9 @@ function loadSettings() {
     roundLabel.textContent = String(state.round);
     state.selectedTopic = saved.selectedTopic || "minecraft";
     state.videoCatalog = {
-      minecraft: saved.videoCatalog?.minecraft || TOPICS.find((topic) => topic.key === "minecraft").defaultUrl,
-      robotik: saved.videoCatalog?.robotik || TOPICS.find((topic) => topic.key === "robotik").defaultUrl,
-      lego: saved.videoCatalog?.lego || TOPICS.find((topic) => topic.key === "lego").defaultUrl
+      minecraft: saved.videoCatalog?.minecraft || getTopicConfig("minecraft").defaultUrls[0],
+      robotik: saved.videoCatalog?.robotik || getTopicConfig("robotik").defaultUrls[0],
+      lego: saved.videoCatalog?.lego || getTopicConfig("lego").defaultUrls[0]
     };
   } catch (error) {
     console.warn("Konnte gespeicherte Einstellungen nicht laden.", error);
@@ -619,6 +644,24 @@ function getSelectedTopicLabel() {
   return TOPICS.find((topic) => topic.key === state.selectedTopic)?.label || "Video";
 }
 
+function getTopicConfig(topicKey) {
+  return TOPICS.find((topic) => topic.key === topicKey);
+}
+
+function getNextFallbackUrl(topicKey, currentUrl) {
+  const topic = getTopicConfig(topicKey);
+  if (!topic) {
+    return "";
+  }
+
+  const currentIndex = topic.defaultUrls.indexOf(currentUrl);
+  if (currentIndex === -1) {
+    return "";
+  }
+
+  return topic.defaultUrls[currentIndex + 1] || "";
+}
+
 function createLocalApi() {
   return {
     async listLearningRounds() {
@@ -721,6 +764,8 @@ function startReward() {
   clearInterval(state.rewardTimer);
   state.rewardSecondsLeft = REWARD_SECONDS;
   state.activeVideoSource = source;
+  state.activeVideoUrl = videoUrl;
+  state.activeFallbackIndex = 0;
   state.activeVideoId = source.mode === "video" ? source.videoId : "";
   state.pendingVideoId = source.mode === "video" ? source.videoId : "";
   videoShell.classList.add("unlocked");
@@ -796,6 +841,29 @@ function playSelectedVideo() {
   }
 }
 
+function handlePlayerError(event) {
+  const errorCode = event.data;
+  const nextFallbackUrl = getNextFallbackUrl(state.selectedTopic, state.activeVideoUrl);
+
+  if ((errorCode === 101 || errorCode === 150 || errorCode === 100 || errorCode === 5) && nextFallbackUrl) {
+    const source = parseVideoSource(nextFallbackUrl);
+    if (source) {
+      state.activeVideoUrl = nextFallbackUrl;
+      state.activeVideoSource = source;
+      state.activeVideoId = source.mode === "video" ? source.videoId : "";
+      state.pendingVideoId = source.mode === "video" ? source.videoId : "";
+      rewardText.textContent = `${getSelectedTopicLabel()} laedt ein alternatives Video.`;
+      playSelectedVideo();
+      return;
+    }
+  }
+
+  lockReward("Dieses Video darf nicht eingebettet werden oder ist gerade nicht verfuegbar.");
+  rewardText.textContent = "Bitte spaeter erneut versuchen oder im Elternmodus eine andere YouTube-URL setzen.";
+  updateStatus("Belohnung konnte nicht gestartet werden, weil YouTube das Video fuer externe Einbettung blockiert.");
+  nextRoundBtn.hidden = false;
+}
+
 function onYouTubeIframeAPIReady() {
   state.player = new window.YT.Player("reward-video", {
     videoId: "",
@@ -808,7 +876,8 @@ function onYouTubeIframeAPIReady() {
       onReady: () => {
         state.playerReady = true;
         playSelectedVideo();
-      }
+      },
+      onError: handlePlayerError
     }
   });
 }

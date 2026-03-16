@@ -1,4 +1,4 @@
-const CACHE_NAME = "mathe-mission-v2";
+const CACHE_NAME = "mathe-mission-v3";
 const ASSETS = [
   "./",
   "./index.html",

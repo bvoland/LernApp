@@ -9,9 +9,8 @@ create table if not exists public.learning_rounds (
   correct_total integer not null check (correct_total >= 0),
   score_percent integer not null check (score_percent >= 0 and score_percent <= 100),
   reward_target integer not null default 95 check (reward_target >= 50 and reward_target <= 100),
-  reward_minutes integer not null default 2 check (reward_minutes >= 1 and reward_minutes <= 15),
+  earned_minutes numeric(6,1) not null default 0 check (earned_minutes >= 0),
   reward_unlocked boolean not null default false,
-  selected_topic text,
   question_set jsonb not null default '[]'::jsonb
 );
 
@@ -26,14 +25,14 @@ add constraint learning_rounds_reward_target_check
 check (reward_target >= 50 and reward_target <= 100);
 
 alter table public.learning_rounds
-add column if not exists reward_minutes integer not null default 2;
+add column if not exists earned_minutes numeric(6,1) not null default 0;
 
 alter table public.learning_rounds
-drop constraint if exists learning_rounds_reward_minutes_check;
+drop constraint if exists learning_rounds_earned_minutes_check;
 
 alter table public.learning_rounds
-add constraint learning_rounds_reward_minutes_check
-check (reward_minutes >= 1 and reward_minutes <= 15);
+add constraint learning_rounds_earned_minutes_check
+check (earned_minutes >= 0);
 
 alter table public.learning_rounds enable row level security;
 

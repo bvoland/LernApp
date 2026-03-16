@@ -8,7 +8,6 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://www.youtube.com/iframe_api"></script>
   <title>Mathe Mission</title>
 </head>
 <body>
@@ -64,34 +63,6 @@
             <input id="target-percent" type="number" min="50" max="100" value="95">
           </label>
 
-          <label class="field">
-            <span>Videozeit in Minuten</span>
-            <input id="reward-minutes" type="number" min="1" max="15" value="2">
-          </label>
-
-          <div class="video-admin">
-            <div class="section-head compact">
-              <div>
-                <h3>Belohnungsvideos</h3>
-                <p class="section-copy">Je Thema eine YouTube-URL oder Embed-URL eintragen.</p>
-              </div>
-            </div>
-
-            <label class="field">
-              <span>Minecraft</span>
-              <input id="video-minecraft" type="url" placeholder="https://www.youtube.com/watch?v=...">
-            </label>
-
-            <label class="field">
-              <span>Robotik</span>
-              <input id="video-robotik" type="url" placeholder="https://www.youtube.com/watch?v=...">
-            </label>
-
-            <label class="field">
-              <span>Lego</span>
-              <input id="video-lego" type="url" placeholder="https://www.youtube.com/watch?v=...">
-            </label>
-          </div>
         </fieldset>
 
         <button id="start-btn" class="primary-btn">Neue Runde starten</button>
@@ -132,7 +103,7 @@
         <div class="section-head">
           <div>
             <h2>Ergebnisse</h2>
-            <p class="section-copy">Die letzten Runden werden lokal und optional in Supabase gespeichert.</p>
+            <p class="section-copy">Die letzten Runden und die erspielten Minuten werden lokal und optional in Supabase gespeichert.</p>
           </div>
           <span id="storage-state" class="lock-chip">Nur lokal</span>
         </div>
@@ -144,26 +115,33 @@
       <section class="panel reward-panel">
         <div class="reward-header">
           <div>
-            <h2>Belohnung</h2>
-            <p id="reward-text">Video ist gesperrt, bis die Zielquote erreicht ist.</p>
+            <h2>Minutenkonto</h2>
+            <p id="reward-text">Ab der Zielquote werden Minuten gutgeschrieben. Je 10 Aufgaben gibt es 1 Minute.</p>
           </div>
-          <div id="timer-pill" class="timer-pill">02:00</div>
+          <div id="timer-pill" class="timer-pill">0,0 Min</div>
         </div>
 
-        <div class="topic-picker">
-          <p class="topic-title">Thema aussuchen</p>
-          <div id="topic-options" class="topic-options"></div>
+        <div class="stats-grid reward-stats">
+          <article class="stat">
+            <span class="stat-label">Heute erspielt</span>
+            <strong id="earned-today">0,0 Min</strong>
+          </article>
+          <article class="stat">
+            <span class="stat-label">Gesamt</span>
+            <strong id="earned-total">0,0 Min</strong>
+          </article>
+          <article class="stat">
+            <span class="stat-label">Naechste Runde</span>
+            <strong id="potential-minutes">2,0 Min</strong>
+          </article>
+          <article class="stat">
+            <span class="stat-label">Regel</span>
+            <strong>10 Aufgaben = 1 Min</strong>
+          </article>
         </div>
 
-        <div class="actions reward-actions">
-          <a id="youtube-open-link" class="secondary-btn" href="https://www.youtube.com" target="_blank" rel="noreferrer">Auf YouTube oeffnen</a>
-        </div>
-
-        <div id="video-shell" class="video-shell locked">
-          <div id="video-overlay" class="video-overlay">
-            <p id="overlay-message">Nach einer erfolgreichen Runde startet hier das Video fuer die eingestellte Zeit.</p>
-          </div>
-          <div id="reward-video" class="player-host" aria-label="Belohnungsvideo"></div>
+        <div class="minutes-board">
+          <p id="overlay-message">Neue Minuten werden nach jeder erfolgreichen Runde automatisch dem Tageskonto gutgeschrieben.</p>
         </div>
       </section>
     </main>

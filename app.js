@@ -1,46 +1,8 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
-const DEFAULT_REWARD_MINUTES = 2;
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const OPERATIONS = ["+", "-", "*", "/"];
-const TOPICS = [
-  {
-    key: "minecraft",
-    label: "Minecraft",
-    defaultUrls: [
-      "https://www.youtube.com/watch?v=9aDWhUJdYDk",
-      "https://www.youtube.com/watch?v=rn4rPCTrpLM",
-      "https://www.youtube.com/watch?v=8jI4Qfj7U6Q",
-      "https://www.youtube.com/watch?v=MmB9b5njVbA",
-      "https://www.youtube.com/watch?v=QdBZY2fkU-0"
-    ],
-    searchUrl: "https://www.youtube.com/results?search_query=Minecraft"
-  },
-  {
-    key: "robotik",
-    label: "Robotik",
-    defaultUrls: [
-      "https://www.youtube.com/watch?v=okxgZw_Hbik",
-      "https://www.youtube.com/watch?v=FZYvmZfb904",
-      "https://www.youtube.com/watch?v=s_cQ3vyV4fo",
-      "https://www.youtube.com/watch?v=szlrv4hQmG8"
-    ],
-    searchUrl: "https://www.youtube.com/results?search_query=Robotik+fuer+Kinder"
-  },
-  {
-    key: "lego",
-    label: "Lego",
-    defaultUrls: [
-      "https://www.youtube.com/watch?v=D7z8iXqjIkE",
-      "https://www.youtube.com/watch?v=MHPhN8Z8Kug",
-      "https://www.youtube.com/watch?v=RK0USYA3Ouo",
-      "https://www.youtube.com/watch?v=4c44N6Q2Z4k",
-      "https://www.youtube.com/watch?v=lWOb9lY8QZ8"
-    ],
-    searchUrl: "https://www.youtube.com/results?search_query=Lego"
-  }
-];
 
 const startBtn = document.getElementById("start-btn");
 const submitBtn = document.getElementById("submit-btn");
@@ -53,7 +15,6 @@ const settingsFields = document.getElementById("settings-fields");
 const childNameInput = document.getElementById("child-name");
 const questionCountInput = document.getElementById("question-count");
 const targetPercentInput = document.getElementById("target-percent");
-const rewardMinutesInput = document.getElementById("reward-minutes");
 const quizForm = document.getElementById("quiz-form");
 const roundLabel = document.getElementById("round-label");
 const correctCount = document.getElementById("correct-count");
@@ -62,42 +23,20 @@ const targetRate = document.getElementById("target-rate");
 const statusBanner = document.getElementById("status-banner");
 const rewardText = document.getElementById("reward-text");
 const timerPill = document.getElementById("timer-pill");
-const videoShell = document.getElementById("video-shell");
 const overlayMessage = document.getElementById("overlay-message");
-const topicOptions = document.getElementById("topic-options");
-const youtubeOpenLink = document.getElementById("youtube-open-link");
 const historyList = document.getElementById("history-list");
 const storageState = document.getElementById("storage-state");
-
-const videoInputs = {
-  minecraft: document.getElementById("video-minecraft"),
-  robotik: document.getElementById("video-robotik"),
-  lego: document.getElementById("video-lego")
-};
+const earnedToday = document.getElementById("earned-today");
+const earnedTotal = document.getElementById("earned-total");
+const potentialMinutes = document.getElementById("potential-minutes");
 
 const state = {
   round: 1,
   questionsPerRound: 20,
   rewardTarget: DEFAULT_REWARD_TARGET,
-  rewardMinutes: DEFAULT_REWARD_MINUTES,
   questions: [],
   isRoundActive: false,
-  rewardTimer: null,
-  rewardSecondsLeft: DEFAULT_REWARD_MINUTES * 60,
   settingsUnlocked: false,
-  selectedTopic: "minecraft",
-  videoCatalog: {
-    minecraft: "",
-    robotik: "",
-    lego: ""
-  },
-  playerReady: false,
-  pendingVideoId: "",
-  activeVideoId: "",
-  activeVideoSource: null,
-  activeVideoUrl: "",
-  activeFallbackIndex: 0,
-  player: null,
   history: [],
   api: null,
   storageMode: "local"
@@ -115,25 +54,35 @@ function loadSettings() {
     childNameInput.value = saved.childName || "";
     questionCountInput.value = saved.questionsPerRound || 20;
     targetPercentInput.value = saved.rewardTarget || DEFAULT_REWARD_TARGET;
-    rewardMinutesInput.value = saved.rewardMinutes || DEFAULT_REWARD_MINUTES;
+    state.questionsPerRound = Number(saved.questionsPerRound) || 20;
     state.rewardTarget = Number(saved.rewardTarget) || DEFAULT_REWARD_TARGET;
-    state.rewardMinutes = Number(saved.rewardMinutes) || DEFAULT_REWARD_MINUTES;
-    targetRate.textContent = `${state.rewardTarget}%`;
     state.round = saved.round || 1;
-    roundLabel.textContent = String(state.round);
-    state.selectedTopic = saved.selectedTopic || "minecraft";
-    state.videoCatalog = {
-      minecraft: saved.videoCatalog?.minecraft || getTopicConfig("minecraft").defaultUrls[0],
-      robotik: saved.videoCatalog?.robotik || getTopicConfig("robotik").defaultUrls[0],
-      lego: saved.videoCatalog?.lego || getTopicConfig("lego").defaultUrls[0]
-    };
   } catch (error) {
     console.warn("Konnte gespeicherte Einstellungen nicht laden.", error);
   }
 
-  Object.entries(videoInputs).forEach(([key, input]) => {
-    input.value = state.videoCatalog[key] || "";
-  });
+  roundLabel.textContent = String(state.round);
+  targetRate.textContent = `${state.rewardTarget}%`;
+  updatePotentialMinutes();
+}
+
+function saveSettings() {
+  state.questionsPerRound = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
+  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
+  questionCountInput.value = String(state.questionsPerRound);
+  targetPercentInput.value = String(state.rewardTarget);
+  targetRate.textContent = `${state.rewardTarget}%`;
+  updatePotentialMinutes();
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      childName: childNameInput.value.trim(),
+      questionsPerRound: state.questionsPerRound,
+      rewardTarget: state.rewardTarget,
+      round: state.round
+    })
+  );
 }
 
 function setStorageMode(mode) {
@@ -159,60 +108,7 @@ function readLocalHistory() {
 }
 
 function writeLocalHistory(entries) {
-  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, 30)));
-}
-
-function saveSettings() {
-  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
-  state.rewardMinutes = Math.min(15, Math.max(1, Number(rewardMinutesInput.value) || DEFAULT_REWARD_MINUTES));
-  targetPercentInput.value = String(state.rewardTarget);
-  rewardMinutesInput.value = String(state.rewardMinutes);
-  targetRate.textContent = `${state.rewardTarget}%`;
-  const payload = {
-    childName: childNameInput.value.trim(),
-    questionsPerRound: Number(questionCountInput.value) || 20,
-    rewardTarget: state.rewardTarget,
-    rewardMinutes: state.rewardMinutes,
-    round: state.round,
-    selectedTopic: state.selectedTopic,
-    videoCatalog: { ...state.videoCatalog }
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-}
-
-function formatHistoryDate(isoString) {
-  const date = new Date(isoString);
-  return new Intl.DateTimeFormat("de-DE", {
-    dateStyle: "short",
-    timeStyle: "short"
-  }).format(date);
-}
-
-function renderHistory() {
-  historyList.innerHTML = "";
-
-  if (!state.history.length) {
-    historyList.innerHTML = '<p class="empty-history">Noch keine gespeicherten Runden.</p>';
-    return;
-  }
-
-  state.history.slice(0, 10).forEach((entry) => {
-    const item = document.createElement("article");
-    item.className = "history-item";
-    item.innerHTML = `
-      <div class="history-main">
-        <strong>${entry.child_name || "Kind"} - Runde ${entry.round_number}</strong>
-        <span>${entry.correct_total}/${entry.questions_total} richtig (${entry.score_percent}%)</span>
-      </div>
-      <div class="history-meta">
-        <span>${entry.reward_unlocked ? "Belohnung frei" : "Noch gesperrt"}</span>
-        <span>${entry.selected_topic || "-"}</span>
-        <span>${formatRewardDuration(entry.reward_minutes || state.rewardMinutes)}</span>
-        <span>${formatHistoryDate(entry.created_at)}</span>
-      </div>
-    `;
-    historyList.append(item);
-  });
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, 50)));
 }
 
 function randomInt(min, max) {
@@ -221,12 +117,8 @@ function randomInt(min, max) {
 
 function pickRangeKey() {
   const roll = Math.random();
-  if (roll < 0.4) {
-    return "small";
-  }
-  if (roll < 0.8) {
-    return "medium";
-  }
+  if (roll < 0.4) return "small";
+  if (roll < 0.8) return "medium";
   return "large";
 }
 
@@ -277,8 +169,7 @@ function buildDivisionQuestion(rangeKey) {
   const right = randomInt(range.divisorMin, range.divisorMax);
   const maxResult = Math.min(range.resultMax, Math.floor(1000 / right));
   const result = randomInt(range.resultMin, Math.max(range.resultMin, maxResult));
-  const left = right * result;
-  return { left, right, operation: "/", answer: result };
+  return { left: right * result, right, operation: "/", answer: result };
 }
 
 function questionKey(question) {
@@ -293,15 +184,10 @@ function buildQuestion(usedKeys) {
     const rangeKey = pickRangeKey();
     let question;
 
-    if (operation === "+") {
-      question = buildAdditionQuestion(rangeKey);
-    } else if (operation === "-") {
-      question = buildSubtractionQuestion(rangeKey);
-    } else if (operation === "*") {
-      question = buildMultiplicationQuestion(rangeKey);
-    } else {
-      question = buildDivisionQuestion(rangeKey);
-    }
+    if (operation === "+") question = buildAdditionQuestion(rangeKey);
+    else if (operation === "-") question = buildSubtractionQuestion(rangeKey);
+    else if (operation === "*") question = buildMultiplicationQuestion(rangeKey);
+    else question = buildDivisionQuestion(rangeKey);
 
     const key = questionKey(question);
     if (!usedKeys.has(key)) {
@@ -315,93 +201,15 @@ function buildQuestion(usedKeys) {
   throw new Error("Konnte keine eindeutige Aufgabe fuer diese Runde erzeugen.");
 }
 
-function createRound() {
-  const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
-  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
-  state.rewardMinutes = Math.min(15, Math.max(1, Number(rewardMinutesInput.value) || DEFAULT_REWARD_MINUTES));
-  targetPercentInput.value = String(state.rewardTarget);
-  rewardMinutesInput.value = String(state.rewardMinutes);
-  targetRate.textContent = `${state.rewardTarget}%`;
-  state.questionsPerRound = questionCount;
-  const usedKeys = new Set();
-
-  try {
-    state.questions = Array.from({ length: questionCount }, (_, index) => ({
-      id: index + 1,
-      ...buildQuestion(usedKeys),
-      userAnswer: "",
-      isCorrect: null
-    }));
-  } catch (error) {
-    console.warn("Runde konnte nicht erzeugt werden.", error);
-    updateStatus("Diese Runde konnte gerade nicht vorbereitet werden. Bitte noch einmal auf 'Neue Runde starten' tippen.");
-    return;
-  }
-
-  state.isRoundActive = true;
-
-  renderQuestions();
-  resetScore();
-  updateStatus(`${getGreeting()} loese jetzt ${questionCount} Aufgaben. Fuer die Belohnung brauchst du mindestens ${state.rewardTarget} Prozent.`);
-  submitBtn.disabled = false;
-  nextRoundBtn.hidden = true;
-  saveSettings();
-}
-
-function currentRoundPayload(correct, percent) {
-  return {
-    child_name: childNameInput.value.trim() || null,
-    round_number: state.round,
-    questions_total: state.questions.length,
-    correct_total: correct,
-    score_percent: percent,
-    reward_unlocked: percent >= state.rewardTarget,
-    reward_target: state.rewardTarget,
-    reward_minutes: state.rewardMinutes,
-    selected_topic: getSelectedTopicLabel(),
-    question_set: state.questions.map((question) => ({
-      left: question.left,
-      right: question.right,
-      operation: question.operation,
-      answer: question.answer,
-      userAnswer: question.userAnswer,
-      isCorrect: question.isCorrect
-    })),
-    created_at: new Date().toISOString()
-  };
-}
-
-async function saveRoundResult(entry) {
-  const mergedHistory = [entry, ...state.history].slice(0, 30);
-  state.history = mergedHistory;
-  writeLocalHistory(mergedHistory);
-  renderHistory();
-
-  if (!state.api || state.storageMode !== "cloud") {
-    return;
-  }
-
-  try {
-    await state.api.createLearningRound(entry);
-    const latest = await state.api.listLearningRounds();
-    state.history = latest;
-    writeLocalHistory(latest);
-    renderHistory();
-    setStorageMode("cloud");
-  } catch (error) {
-    console.warn("Supabase-Speicherung fehlgeschlagen, lokaler Fallback bleibt aktiv.", error);
-    setStorageMode("local");
-  }
+function getOperationSymbol(operation) {
+  if (operation === "*") return "x";
+  if (operation === "/") return ":";
+  return operation;
 }
 
 function getGreeting() {
   const name = childNameInput.value.trim();
   return name ? `${name},` : "Los geht's,";
-}
-
-function resetScore() {
-  correctCount.textContent = "0";
-  scoreRate.textContent = "0%";
 }
 
 function renderQuestions() {
@@ -437,68 +245,118 @@ function renderQuestions() {
   });
 }
 
-function getOperationSymbol(operation) {
-  if (operation === "*") {
-    return "x";
-  }
-  if (operation === "/") {
-    return ":";
-  }
-  return operation;
-}
-
 function handleAnswerInput(event) {
   const id = Number(event.target.dataset.id);
   const question = state.questions.find((item) => item.id === id);
-  if (!question) {
-    return;
+  if (question) {
+    question.userAnswer = event.target.value;
   }
-
-  question.userAnswer = event.target.value;
 }
 
-function evaluateRound() {
-  if (!state.isRoundActive) {
+function updateStatus(message) {
+  statusBanner.textContent = message;
+}
+
+function formatHistoryDate(isoString) {
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(isoString));
+}
+
+function formatMinutes(minutes) {
+  return `${minutes.toFixed(1).replace(".", ",")} Min`;
+}
+
+function calculateEarnedMinutes(questionCount) {
+  return Math.round((questionCount / 10) * 10) / 10;
+}
+
+function updatePotentialMinutes() {
+  const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || state.questionsPerRound || 20));
+  potentialMinutes.textContent = formatMinutes(calculateEarnedMinutes(questionCount));
+  timerPill.textContent = potentialMinutes.textContent;
+}
+
+function localDateKey(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function updateMinuteSummary() {
+  const todayKey = localDateKey(Date.now());
+  const todayMinutes = state.history
+    .filter((entry) => localDateKey(entry.created_at) === todayKey)
+    .reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+  const totalMinutes = state.history.reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+
+  earnedToday.textContent = formatMinutes(todayMinutes);
+  earnedTotal.textContent = formatMinutes(totalMinutes);
+}
+
+function renderHistory() {
+  historyList.innerHTML = "";
+
+  if (!state.history.length) {
+    historyList.innerHTML = '<p class="empty-history">Noch keine gespeicherten Runden.</p>';
+    updateMinuteSummary();
     return;
   }
 
-  let correct = 0;
-
-  state.questions.forEach((question) => {
-    const numericAnswer = Number(question.userAnswer);
-    question.isCorrect = question.userAnswer !== "" && numericAnswer === question.answer;
-    if (question.isCorrect) {
-      correct += 1;
-    }
+  state.history.slice(0, 10).forEach((entry) => {
+    const item = document.createElement("article");
+    item.className = "history-item";
+    item.innerHTML = `
+      <div class="history-main">
+        <strong>${entry.child_name || "Kind"} - Runde ${entry.round_number}</strong>
+        <span>${entry.correct_total}/${entry.questions_total} richtig (${entry.score_percent}%)</span>
+      </div>
+      <div class="history-meta">
+        <span>${entry.reward_unlocked ? "Minuten gutgeschrieben" : "Keine Minuten"}</span>
+        <span>${formatMinutes(Number(entry.earned_minutes || 0))}</span>
+        <span>${formatHistoryDate(entry.created_at)}</span>
+      </div>
+    `;
+    historyList.append(item);
   });
 
-  const percent = Math.round((correct / state.questions.length) * 100);
-  void saveRoundResult(currentRoundPayload(correct, percent));
-  correctCount.textContent = String(correct);
-  scoreRate.textContent = `${percent}%`;
-  state.isRoundActive = false;
+  updateMinuteSummary();
+}
 
-  updateQuestionFeedback();
-  submitBtn.disabled = true;
+function createRound() {
+  saveSettings();
+  const usedKeys = new Set();
 
-  if (percent >= state.rewardTarget) {
-    nextRoundBtn.hidden = true;
-    updateStatus(`Stark gemacht. ${correct} von ${state.questions.length} Aufgaben sind richtig. Das ${getSelectedTopicLabel()}-Video laeuft jetzt fuer ${formatRewardDuration(state.rewardMinutes)}.`);
-    startReward();
+  try {
+    state.questions = Array.from({ length: state.questionsPerRound }, (_, index) => ({
+      id: index + 1,
+      ...buildQuestion(usedKeys),
+      userAnswer: "",
+      isCorrect: null
+    }));
+  } catch (error) {
+    console.warn("Runde konnte nicht erzeugt werden.", error);
+    updateStatus("Diese Runde konnte gerade nicht vorbereitet werden. Bitte noch einmal auf 'Neue Runde starten' tippen.");
     return;
   }
 
-  updateStatus(`Diese Runde reicht noch nicht fuer die Belohnung. ${correct} von ${state.questions.length} richtig. Noch eine Runde mit ${state.questionsPerRound} neuen Aufgaben.`);
-  lockReward(`Weiter ueben: Erst ab ${state.rewardTarget} Prozent wird das Video freigeschaltet.`);
-  nextRoundBtn.hidden = false;
+  state.isRoundActive = true;
+  renderQuestions();
+  correctCount.textContent = "0";
+  scoreRate.textContent = "0%";
+  submitBtn.disabled = false;
+  nextRoundBtn.hidden = true;
+  speakRoundIntro();
+  updateStatus(`${getGreeting()} loese jetzt ${state.questionsPerRound} Aufgaben. Bei mindestens ${state.rewardTarget}% bekommst du ${formatMinutes(calculateEarnedMinutes(state.questionsPerRound))} gutgeschrieben.`);
 }
 
 function updateQuestionFeedback() {
   state.questions.forEach((question) => {
     const card = quizForm.querySelector(`[data-id="${question.id}"]`);
-    if (!card) {
-      return;
-    }
+    if (!card) return;
 
     const feedback = card.querySelector(".question-feedback");
     card.classList.remove("correct", "wrong");
@@ -514,44 +372,86 @@ function updateQuestionFeedback() {
   });
 }
 
-function updateStatus(message) {
-  statusBanner.textContent = message;
+function currentRoundPayload(correct, percent, earnedMinutes) {
+  return {
+    child_name: childNameInput.value.trim() || null,
+    round_number: state.round,
+    questions_total: state.questions.length,
+    correct_total: correct,
+    score_percent: percent,
+    reward_unlocked: earnedMinutes > 0,
+    reward_target: state.rewardTarget,
+    earned_minutes: earnedMinutes,
+    question_set: state.questions.map((question) => ({
+      left: question.left,
+      right: question.right,
+      operation: question.operation,
+      answer: question.answer,
+      userAnswer: question.userAnswer,
+      isCorrect: question.isCorrect
+    })),
+    created_at: new Date().toISOString()
+  };
 }
 
-function renderTopicOptions() {
-  topicOptions.innerHTML = "";
+async function saveRoundResult(entry) {
+  const mergedHistory = [entry, ...state.history].slice(0, 50);
+  state.history = mergedHistory;
+  writeLocalHistory(mergedHistory);
+  renderHistory();
 
-  TOPICS.forEach((topic) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "topic-btn";
-    button.dataset.topic = topic.key;
-
-    if (state.selectedTopic === topic.key) {
-      button.classList.add("active");
-    }
-
-    const isConfigured = Boolean(state.videoCatalog[topic.key]);
-    button.innerHTML = `
-      <span class="topic-name">${topic.label}</span>
-      <span class="topic-meta">${isConfigured ? "Video bereit" : "Noch kein Video"}</span>
-    `;
-    button.addEventListener("click", () => selectTopic(topic.key));
-    topicOptions.append(button);
-  });
-}
-
-function selectTopic(topicKey) {
-  state.selectedTopic = topicKey;
-  renderTopicOptions();
-  syncYouTubeOpenLink();
-  saveSettings();
-
-  if (!state.videoCatalog[topicKey]) {
-    rewardText.textContent = `Fuer ${getSelectedTopicLabel()} ist noch kein Video hinterlegt.`;
-  } else if (!state.rewardTimer) {
-    rewardText.textContent = `${getSelectedTopicLabel()} ist ausgewaehlt. Das Video startet nach einer erfolgreichen Runde.`;
+  if (!state.api || state.storageMode !== "cloud") {
+    return;
   }
+
+  try {
+    await state.api.createLearningRound(entry);
+    const latest = await state.api.listLearningRounds();
+    state.history = latest;
+    writeLocalHistory(latest);
+    renderHistory();
+    setStorageMode("cloud");
+  } catch (error) {
+    console.warn("Supabase-Speicherung fehlgeschlagen, lokaler Fallback bleibt aktiv.", error);
+    setStorageMode("local");
+  }
+}
+
+function evaluateRound() {
+  if (!state.isRoundActive) return;
+
+  let correct = 0;
+  state.questions.forEach((question) => {
+    const numericAnswer = Number(question.userAnswer);
+    question.isCorrect = question.userAnswer !== "" && numericAnswer === question.answer;
+    if (question.isCorrect) correct += 1;
+  });
+
+  const percent = Math.round((correct / state.questions.length) * 100);
+  const earnedMinutes = percent >= state.rewardTarget ? calculateEarnedMinutes(state.questions.length) : 0;
+
+  void saveRoundResult(currentRoundPayload(correct, percent, earnedMinutes));
+
+  correctCount.textContent = String(correct);
+  scoreRate.textContent = `${percent}%`;
+  state.isRoundActive = false;
+  updateQuestionFeedback();
+  submitBtn.disabled = true;
+  nextRoundBtn.hidden = false;
+
+  if (earnedMinutes > 0) {
+    rewardText.textContent = `Heute wurden gerade ${formatMinutes(earnedMinutes)} gutgeschrieben.`;
+    overlayMessage.textContent = `Starke Runde. Die erspielten Minuten koennt ihr jetzt selbst fuer Medienzeit verwenden.`;
+    updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden dem Minutenkonto hinzugefuegt.`);
+  } else {
+    rewardText.textContent = "Diese Runde war noch unter der Zielquote.";
+    overlayMessage.textContent = `Es wurden keine Minuten gutgeschrieben. Noch einmal versuchen und mindestens ${state.rewardTarget}% erreichen.`;
+    updateStatus(`Diese Runde reicht noch nicht. ${correct} von ${state.questions.length} richtig. Ab ${state.rewardTarget}% gibt es Minuten.`);
+  }
+
+  state.round += 1;
+  roundLabel.textContent = String(state.round);
+  saveSettings();
 }
 
 function unlockSettings() {
@@ -585,116 +485,17 @@ function toggleSettingsLock() {
   unlockSettings();
 }
 
-function normalizeVideoUrl(url) {
-  const trimmed = url.trim();
-  if (!trimmed) {
-    return "";
+function speakRoundIntro() {
+  if (!("speechSynthesis" in window)) {
+    return;
   }
 
-  if (trimmed.includes("/embed/")) {
-    return trimmed;
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.hostname.includes("youtube.com")) {
-      if (parsed.pathname === "/watch") {
-        const videoId = parsed.searchParams.get("v");
-        if (videoId) {
-          return `https://www.youtube.com/embed/${videoId}`;
-        }
-      }
-
-      const pathParts = parsed.pathname.split("/").filter(Boolean);
-      const firstPart = pathParts[0] || "";
-
-      if (pathParts.length === 1 && !["watch", "embed", "results", "playlist", "channel", "shorts"].includes(firstPart)) {
-        return `https://www.youtube.com/embed?listType=user_uploads&list=${encodeURIComponent(firstPart)}`;
-      }
-
-      if ((firstPart === "c" || firstPart.startsWith("@")) && pathParts[1]) {
-        return `https://www.youtube.com/embed?listType=user_uploads&list=${encodeURIComponent(pathParts[1])}`;
-      }
-
-      const videoId = parsed.searchParams.get("v");
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-    }
-
-    if (parsed.hostname === "youtu.be") {
-      const videoId = parsed.pathname.replace("/", "");
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-    }
-  } catch (error) {
-    console.warn("Ungueltige Video-URL", error);
-  }
-
-  return "";
-}
-
-function parseVideoSource(url) {
-  const normalized = normalizeVideoUrl(url);
-  if (!normalized) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(normalized);
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    const isEmbedVideo = parts[0] === "embed" && parts[1];
-    const listType = parsed.searchParams.get("listType");
-    const list = parsed.searchParams.get("list");
-
-    if (isEmbedVideo) {
-      return { mode: "video", videoId: parts[1] };
-    }
-
-    if (listType && list) {
-      return { mode: "list", listType, list };
-    }
-  } catch (error) {
-    console.warn("Videoquelle konnte nicht geparst werden.", error);
-  }
-
-  return null;
-}
-
-function getSelectedTopicLabel() {
-  return TOPICS.find((topic) => topic.key === state.selectedTopic)?.label || "Video";
-}
-
-function formatRewardDuration(minutes) {
-  return minutes === 1 ? "1 Minute" : `${minutes} Minuten`;
-}
-
-function getTopicConfig(topicKey) {
-  return TOPICS.find((topic) => topic.key === topicKey);
-}
-
-function syncYouTubeOpenLink() {
-  const topic = getTopicConfig(state.selectedTopic);
-  const configuredUrl = state.videoCatalog[state.selectedTopic];
-  youtubeOpenLink.href = configuredUrl || topic?.searchUrl || "https://www.youtube.com";
-}
-
-function getNextFallbackUrl(topicKey, currentUrl) {
-  const topic = getTopicConfig(topicKey);
-  if (!topic) {
-    return "";
-  }
-
-  const configuredUrl = state.videoCatalog[topicKey];
-  const defaults = topic.defaultUrls.filter((url) => url !== configuredUrl);
-  const fallbackPool = configuredUrl ? [configuredUrl, ...defaults] : defaults;
-  const currentIndex = fallbackPool.indexOf(currentUrl);
-  if (currentIndex === -1) {
-    return fallbackPool[0] || "";
-  }
-
-  return fallbackPool[currentIndex + 1] || "";
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance("Let's get ready to rumble!");
+  utterance.lang = "en-US";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
 }
 
 function createLocalApi() {
@@ -736,10 +537,9 @@ function createSupabaseApi(cfg) {
   return {
     async listLearningRounds() {
       const query =
-        "?select=id,created_at,child_name,round_number,questions_total,correct_total,score_percent,reward_unlocked,selected_topic" +
-        ",reward_minutes" +
+        "?select=id,created_at,child_name,round_number,questions_total,correct_total,score_percent,reward_unlocked,reward_target,earned_minutes" +
         "&order=created_at.desc" +
-        "&limit=20";
+        "&limit=50";
       const data = await request(base + query, { method: "GET" });
       return Array.isArray(data) ? data : [];
     },
@@ -780,148 +580,6 @@ async function loadHistory() {
   }
 }
 
-function handleVideoInputChange(event) {
-  const topicKey = event.target.id.replace("video-", "");
-  state.videoCatalog[topicKey] = event.target.value.trim();
-  renderTopicOptions();
-  saveSettings();
-}
-
-function startReward() {
-  const videoUrl = state.videoCatalog[state.selectedTopic];
-  const source = parseVideoSource(videoUrl);
-  syncYouTubeOpenLink();
-
-  if (!source) {
-    lockReward(`Fuer ${getSelectedTopicLabel()} ist noch keine gueltige YouTube-URL eingetragen.`);
-    rewardText.textContent = `Bitte im Elternbereich ein gueltiges ${getSelectedTopicLabel()}-Video hinterlegen.`;
-    return;
-  }
-
-  clearInterval(state.rewardTimer);
-  state.rewardSecondsLeft = state.rewardMinutes * 60;
-  state.activeVideoSource = source;
-  state.activeVideoUrl = videoUrl;
-  state.activeFallbackIndex = 0;
-  state.activeVideoId = source.mode === "video" ? source.videoId : "";
-  state.pendingVideoId = source.mode === "video" ? source.videoId : "";
-  videoShell.classList.add("unlocked");
-  overlayMessage.textContent = "";
-  rewardText.textContent = `${getSelectedTopicLabel()} laeuft jetzt fuer ${formatRewardDuration(state.rewardMinutes)}.`;
-  updateTimerText();
-  playSelectedVideo();
-
-  state.rewardTimer = window.setInterval(() => {
-    state.rewardSecondsLeft -= 1;
-    updateTimerText();
-
-    if (state.rewardSecondsLeft <= 0) {
-      finishRewardWindow();
-    }
-  }, 1000);
-}
-
-function finishRewardWindow() {
-  clearInterval(state.rewardTimer);
-  state.rewardTimer = null;
-  pausePlayer();
-  state.round += 1;
-  roundLabel.textContent = String(state.round);
-  saveSettings();
-  lockReward(`Die ${formatRewardDuration(state.rewardMinutes)} sind vorbei. Jetzt muessen erst wieder ${state.questionsPerRound} Aufgaben geloest werden.`);
-  updateStatus(`Belohnungszeit beendet. Starte Runde ${state.round} mit ${state.questionsPerRound} neuen Aufgaben.`);
-  nextRoundBtn.hidden = false;
-}
-
-function updateTimerText() {
-  const minutes = String(Math.floor(state.rewardSecondsLeft / 60)).padStart(2, "0");
-  const seconds = String(state.rewardSecondsLeft % 60).padStart(2, "0");
-  timerPill.textContent = `${minutes}:${seconds}`;
-}
-
-function lockReward(message) {
-  clearInterval(state.rewardTimer);
-  state.rewardTimer = null;
-  state.rewardSecondsLeft = state.rewardMinutes * 60;
-  updateTimerText();
-  pausePlayer();
-  videoShell.classList.remove("unlocked");
-  overlayMessage.textContent = message;
-  rewardText.textContent = "Video ist gesperrt, bis die naechste starke Runde geschafft ist.";
-}
-
-function pausePlayer() {
-  if (state.player && state.playerReady) {
-    state.player.pauseVideo();
-  }
-}
-
-function playSelectedVideo() {
-  if (!state.activeVideoSource) {
-    return;
-  }
-
-  if (state.player && state.playerReady) {
-    if (state.activeVideoSource.mode === "video" && state.pendingVideoId) {
-      state.player.loadVideoById(state.pendingVideoId);
-      state.pendingVideoId = "";
-      return;
-    }
-
-    if (state.activeVideoSource.mode === "list") {
-      state.player.loadPlaylist({
-        listType: state.activeVideoSource.listType,
-        list: state.activeVideoSource.list,
-        index: 0
-      });
-    }
-  }
-}
-
-function handlePlayerError(event) {
-  const errorCode = event.data;
-  const nextFallbackUrl = getNextFallbackUrl(state.selectedTopic, state.activeVideoUrl);
-
-  if ((errorCode === 101 || errorCode === 150 || errorCode === 100 || errorCode === 5) && nextFallbackUrl) {
-    const source = parseVideoSource(nextFallbackUrl);
-    if (source) {
-      state.activeVideoUrl = nextFallbackUrl;
-      state.activeVideoSource = source;
-      state.activeVideoId = source.mode === "video" ? source.videoId : "";
-      state.pendingVideoId = source.mode === "video" ? source.videoId : "";
-      rewardText.textContent = `${getSelectedTopicLabel()} laedt ein alternatives Video.`;
-      syncYouTubeOpenLink();
-      playSelectedVideo();
-      return;
-    }
-  }
-
-  lockReward("Dieses Video darf nicht eingebettet werden oder ist gerade nicht verfuegbar.");
-  rewardText.textContent = "Bitte auf YouTube oeffnen oder im Elternmodus eine andere YouTube-URL setzen.";
-  updateStatus("Belohnung konnte nicht gestartet werden, weil YouTube das Video fuer externe Einbettung blockiert.");
-  nextRoundBtn.hidden = false;
-}
-
-function onYouTubeIframeAPIReady() {
-  state.player = new window.YT.Player("reward-video", {
-    videoId: "",
-    playerVars: {
-      autoplay: 1,
-      rel: 0,
-      modestbranding: 1
-    },
-    events: {
-      onReady: () => {
-        state.playerReady = true;
-        playSelectedVideo();
-      },
-      onError: handlePlayerError
-    }
-  });
-}
-
-window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
-
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -943,20 +601,15 @@ parentPinInput.addEventListener("keydown", (event) => {
   }
 });
 
-[childNameInput, questionCountInput, targetPercentInput, rewardMinutesInput].forEach((element) => {
+[childNameInput, questionCountInput, targetPercentInput].forEach((element) => {
   element.addEventListener("change", saveSettings);
-});
-
-Object.values(videoInputs).forEach((input) => {
-  input.addEventListener("change", handleVideoInputChange);
+  element.addEventListener("input", updatePotentialMinutes);
 });
 
 loadSettings();
 setSettingsLock(false);
-renderTopicOptions();
-selectTopic(state.selectedTopic);
-lockReward(`Nach einer erfolgreichen Runde startet hier das ausgewaehlte Video fuer ${formatRewardDuration(state.rewardMinutes)}.`);
-syncYouTubeOpenLink();
-updateTimerText();
+rewardText.textContent = "Ab der Zielquote werden Minuten gutgeschrieben. Je 10 Aufgaben gibt es 1 Minute.";
+overlayMessage.textContent = "Neue Minuten werden nach jeder erfolgreichen Runde automatisch dem Tageskonto gutgeschrieben.";
+updatePotentialMinutes();
 void loadHistory();
 registerServiceWorker();

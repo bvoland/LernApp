@@ -5,9 +5,9 @@ const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const OPERATIONS = ["+", "-", "*", "/"];
 const TOPICS = [
-  { key: "minecraft", label: "Minecraft", searchText: "Minecraft" },
-  { key: "robotik", label: "Robotik", searchText: "Robotik" },
-  { key: "lego", label: "Lego", searchText: "Lego" }
+  { key: "minecraft", label: "Minecraft", defaultUrl: "https://www.youtube.com/minecraft" },
+  { key: "robotik", label: "Robotik", defaultUrl: "https://www.youtube.com/watch?v=PvOT2G8ShdQ" },
+  { key: "lego", label: "Lego", defaultUrl: "https://www.youtube.com/LEGO" }
 ];
 
 const startBtn = document.getElementById("start-btn");
@@ -59,6 +59,7 @@ const state = {
   playerReady: false,
   pendingVideoId: "",
   activeVideoId: "",
+  activeVideoSource: null,
   player: null,
   history: [],
   api: null,
@@ -83,9 +84,9 @@ function loadSettings() {
     roundLabel.textContent = String(state.round);
     state.selectedTopic = saved.selectedTopic || "minecraft";
     state.videoCatalog = {
-      minecraft: saved.videoCatalog?.minecraft || "",
-      robotik: saved.videoCatalog?.robotik || "",
-      lego: saved.videoCatalog?.lego || ""
+      minecraft: saved.videoCatalog?.minecraft || TOPICS.find((topic) => topic.key === "minecraft").defaultUrl,
+      robotik: saved.videoCatalog?.robotik || TOPICS.find((topic) => topic.key === "robotik").defaultUrl,
+      lego: saved.videoCatalog?.lego || TOPICS.find((topic) => topic.key === "lego").defaultUrl
     };
   } catch (error) {
     console.warn("Konnte gespeicherte Einstellungen nicht laden.", error);
@@ -550,6 +551,24 @@ function normalizeVideoUrl(url) {
   try {
     const parsed = new URL(trimmed);
     if (parsed.hostname.includes("youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        const videoId = parsed.searchParams.get("v");
+        if (videoId) {
+          return `https://www.youtube.com/embed/${videoId}`;
+        }
+      }
+
+      const pathParts = parsed.pathname.split("/").filter(Boolean);
+      const firstPart = pathParts[0] || "";
+
+      if (pathParts.length === 1 && !["watch", "embed", "results", "playlist", "channel", "shorts"].includes(firstPart)) {
+        return `https://www.youtube.com/embed?listType=user_uploads&list=${encodeURIComponent(firstPart)}`;
+      }
+
+      if ((firstPart === "c" || firstPart.startsWith("@")) && pathParts[1]) {
+        return `https://www.youtube.com/embed?listType=user_uploads&list=${encodeURIComponent(pathParts[1])}`;
+      }
+
       const videoId = parsed.searchParams.get("v");
       if (videoId) {
         return `https://www.youtube.com/embed/${videoId}`;
@@ -569,20 +588,31 @@ function normalizeVideoUrl(url) {
   return "";
 }
 
-function extractVideoId(url) {
+function parseVideoSource(url) {
   const normalized = normalizeVideoUrl(url);
   if (!normalized) {
-    return "";
+    return null;
   }
 
   try {
     const parsed = new URL(normalized);
     const parts = parsed.pathname.split("/").filter(Boolean);
-    return parts[parts.length - 1] || "";
+    const isEmbedVideo = parts[0] === "embed" && parts[1];
+    const listType = parsed.searchParams.get("listType");
+    const list = parsed.searchParams.get("list");
+
+    if (isEmbedVideo) {
+      return { mode: "video", videoId: parts[1] };
+    }
+
+    if (listType && list) {
+      return { mode: "list", listType, list };
+    }
   } catch (error) {
-    console.warn("Konnte Video-ID nicht lesen.", error);
-    return "";
+    console.warn("Videoquelle konnte nicht geparst werden.", error);
   }
+
+  return null;
 }
 
 function getSelectedTopicLabel() {
@@ -680,9 +710,9 @@ function handleVideoInputChange(event) {
 
 function startReward() {
   const videoUrl = state.videoCatalog[state.selectedTopic];
-  const videoId = extractVideoId(videoUrl);
+  const source = parseVideoSource(videoUrl);
 
-  if (!videoId) {
+  if (!source) {
     lockReward(`Fuer ${getSelectedTopicLabel()} ist noch keine gueltige YouTube-URL eingetragen.`);
     rewardText.textContent = `Bitte im Elternbereich ein gueltiges ${getSelectedTopicLabel()}-Video hinterlegen.`;
     return;
@@ -690,8 +720,9 @@ function startReward() {
 
   clearInterval(state.rewardTimer);
   state.rewardSecondsLeft = REWARD_SECONDS;
-  state.activeVideoId = videoId;
-  state.pendingVideoId = videoId;
+  state.activeVideoSource = source;
+  state.activeVideoId = source.mode === "video" ? source.videoId : "";
+  state.pendingVideoId = source.mode === "video" ? source.videoId : "";
   videoShell.classList.add("unlocked");
   overlayMessage.textContent = "";
   rewardText.textContent = `${getSelectedTopicLabel()} laeuft jetzt fuer 2 Minuten.`;
@@ -744,13 +775,24 @@ function pausePlayer() {
 }
 
 function playSelectedVideo() {
-  if (!state.pendingVideoId) {
+  if (!state.activeVideoSource) {
     return;
   }
 
   if (state.player && state.playerReady) {
-    state.player.loadVideoById(state.pendingVideoId);
-    state.pendingVideoId = "";
+    if (state.activeVideoSource.mode === "video" && state.pendingVideoId) {
+      state.player.loadVideoById(state.pendingVideoId);
+      state.pendingVideoId = "";
+      return;
+    }
+
+    if (state.activeVideoSource.mode === "list") {
+      state.player.loadPlaylist({
+        listType: state.activeVideoSource.listType,
+        list: state.activeVideoSource.list,
+        index: 0
+      });
+    }
   }
 }
 

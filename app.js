@@ -5,10 +5,10 @@ const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
 const PROFILES_STORAGE_KEY = "mathe-mission-profiles";
 const DEFAULT_PROFILES = [
-  { name: "Lukas", grade: 3 },
-  { name: "Amelie", grade: 3 },
-  { name: "Kathi", grade: 3 },
-  { name: "Benny", grade: 3 }
+  { name: "Lukas", currentGrade: 3, minGrade: 3, maxGrade: 3 },
+  { name: "Amelie", currentGrade: 1, minGrade: 1, maxGrade: 3 },
+  { name: "Kathi", currentGrade: 3, minGrade: 3, maxGrade: 3 },
+  { name: "Benny", currentGrade: 3, minGrade: 3, maxGrade: 3 }
 ];
 
 const startBtn = document.getElementById("start-btn");
@@ -69,11 +69,11 @@ const state = {
 };
 
 function getProfile(name) {
-  return state.profiles.find((profile) => profile.name === name) || { name, grade: 3 };
+  return state.profiles.find((profile) => profile.name === name) || { name, currentGrade: 3, minGrade: 3, maxGrade: 3 };
 }
 
 function currentGrade() {
-  return Number(getProfile(state.selectedChild).grade || 3);
+  return Number(getProfile(state.selectedChild).currentGrade || 3);
 }
 
 function readStorageArray(key) {
@@ -92,16 +92,21 @@ function writeStorageArray(key, entries, limit = 200) {
 
 function loadProfiles() {
   const saved = readStorageArray(PROFILES_STORAGE_KEY);
-  const merged = [...DEFAULT_PROFILES];
+  const profileMap = new Map(
+    DEFAULT_PROFILES.map((profile) => [profile.name, { ...profile }])
+  );
 
   saved.forEach((profile) => {
-    if (!merged.some((item) => item.name === profile.name)) {
-      merged.push({ name: profile.name, grade: Number(profile.grade) || 3 });
-    }
+    profileMap.set(profile.name, {
+      name: profile.name,
+      currentGrade: Number(profile.currentGrade || profile.grade) || 3,
+      minGrade: Number(profile.minGrade) || 1,
+      maxGrade: Number(profile.maxGrade) || 3
+    });
   });
 
-  state.profiles = merged;
-  writeStorageArray(PROFILES_STORAGE_KEY, merged, 50);
+  state.profiles = Array.from(profileMap.values());
+  writeStorageArray(PROFILES_STORAGE_KEY, state.profiles, 50);
 }
 
 function saveProfiles() {
@@ -113,13 +118,25 @@ function renderChildOptions() {
   state.profiles.forEach((profile) => {
     const option = document.createElement("option");
     option.value = profile.name;
-    option.textContent = `${profile.name} (${profile.grade}. Klasse)`;
+    option.textContent = `${profile.name} (${profile.currentGrade}. Klasse)`;
     childSelect.append(option);
   });
   childSelect.value = state.selectedChild;
-  childGradeSelect.value = String(currentGrade());
+  renderGradeOptions();
   gradeBadge.textContent = `${currentGrade()}. Klasse`;
   statsCopy.textContent = `Lernfortschritt von ${state.selectedChild} fuer heute, diesen Monat und insgesamt.`;
+}
+
+function renderGradeOptions() {
+  const profile = getProfile(state.selectedChild);
+  childGradeSelect.innerHTML = "";
+  for (let grade = profile.minGrade; grade <= profile.maxGrade; grade += 1) {
+    const option = document.createElement("option");
+    option.value = String(grade);
+    option.textContent = `${grade}. Klasse`;
+    childGradeSelect.append(option);
+  }
+  childGradeSelect.value = String(profile.currentGrade);
 }
 
 function loadSettings() {
@@ -676,7 +693,7 @@ function addChild() {
   const name = childNameInput.value.trim();
   if (!name) return;
   if (!state.profiles.some((profile) => profile.name === name)) {
-    state.profiles.push({ name, grade: 3 });
+    state.profiles.push({ name, currentGrade: 1, minGrade: 1, maxGrade: 3 });
     saveProfiles();
   }
   childNameInput.value = "";
@@ -685,10 +702,11 @@ function addChild() {
 
 function updateChildGrade() {
   const profile = getProfile(state.selectedChild);
-  profile.grade = Number(childGradeSelect.value) || 3;
+  const nextGrade = Number(childGradeSelect.value) || profile.currentGrade || 3;
+  profile.currentGrade = Math.min(profile.maxGrade, Math.max(profile.minGrade, nextGrade));
   saveProfiles();
   renderChildOptions();
-  updateStatus(`${state.selectedChild} ist jetzt fuer Aufgaben der ${profile.grade}. Klasse freigegeben.`);
+  updateStatus(`${state.selectedChild} ist jetzt fuer Aufgaben der ${profile.currentGrade}. Klasse freigegeben.`);
 }
 
 function createLocalApi() {

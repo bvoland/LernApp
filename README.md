@@ -7,6 +7,7 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 - Nutzerwahl mit Standardkindern: Lukas, Amelie, Kathi und Benny
 - Bereits bekannte Kinder koennen erneut ausgewaehlt werden
 - Pro Kind kann im Elternmodus 1., 2. oder 3. Klasse freigeschaltet werden
+  Lukas ist fest auf 3. Klasse, Amelie startet auf 1. Klasse und kann spaeter hochgesetzt werden
 - Addition, Subtraktion, Multiplikation und Division je nach Klassenstufe
 - Standardmaessig 20 Aufgaben pro Runde, anpassbar zwischen 5 und 40
 - Auswertung aller Antworten mit Anzeige der richtigen Ergebnisse

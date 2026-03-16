@@ -1,5 +1,5 @@
 const PARENT_PIN = "0922";
-const REWARD_TARGET = 95;
+const DEFAULT_REWARD_TARGET = 95;
 const REWARD_SECONDS = 120;
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
@@ -20,10 +20,12 @@ const settingsState = document.getElementById("settings-state");
 const settingsFields = document.getElementById("settings-fields");
 const childNameInput = document.getElementById("child-name");
 const questionCountInput = document.getElementById("question-count");
+const targetPercentInput = document.getElementById("target-percent");
 const quizForm = document.getElementById("quiz-form");
 const roundLabel = document.getElementById("round-label");
 const correctCount = document.getElementById("correct-count");
 const scoreRate = document.getElementById("score-rate");
+const targetRate = document.getElementById("target-rate");
 const statusBanner = document.getElementById("status-banner");
 const rewardText = document.getElementById("reward-text");
 const timerPill = document.getElementById("timer-pill");
@@ -42,6 +44,7 @@ const videoInputs = {
 const state = {
   round: 1,
   questionsPerRound: 20,
+  rewardTarget: DEFAULT_REWARD_TARGET,
   questions: [],
   isRoundActive: false,
   rewardTimer: null,
@@ -73,6 +76,9 @@ function loadSettings() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     childNameInput.value = saved.childName || "";
     questionCountInput.value = saved.questionsPerRound || 20;
+    targetPercentInput.value = saved.rewardTarget || DEFAULT_REWARD_TARGET;
+    state.rewardTarget = Number(saved.rewardTarget) || DEFAULT_REWARD_TARGET;
+    targetRate.textContent = `${state.rewardTarget}%`;
     state.round = saved.round || 1;
     roundLabel.textContent = String(state.round);
     state.selectedTopic = saved.selectedTopic || "minecraft";
@@ -117,9 +123,13 @@ function writeLocalHistory(entries) {
 }
 
 function saveSettings() {
+  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
+  targetPercentInput.value = String(state.rewardTarget);
+  targetRate.textContent = `${state.rewardTarget}%`;
   const payload = {
     childName: childNameInput.value.trim(),
     questionsPerRound: Number(questionCountInput.value) || 20,
+    rewardTarget: state.rewardTarget,
     round: state.round,
     selectedTopic: state.selectedTopic,
     videoCatalog: { ...state.videoCatalog }
@@ -263,6 +273,9 @@ function buildQuestion(usedKeys) {
 
 function createRound() {
   const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
+  state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
+  targetPercentInput.value = String(state.rewardTarget);
+  targetRate.textContent = `${state.rewardTarget}%`;
   state.questionsPerRound = questionCount;
   const usedKeys = new Set();
 
@@ -283,7 +296,7 @@ function createRound() {
 
   renderQuestions();
   resetScore();
-  updateStatus(`${getGreeting()} loese jetzt ${questionCount} Aufgaben. Fuer die Belohnung brauchst du mindestens ${REWARD_TARGET} Prozent.`);
+  updateStatus(`${getGreeting()} loese jetzt ${questionCount} Aufgaben. Fuer die Belohnung brauchst du mindestens ${state.rewardTarget} Prozent.`);
   submitBtn.disabled = false;
   nextRoundBtn.hidden = true;
   saveSettings();
@@ -296,7 +309,8 @@ function currentRoundPayload(correct, percent) {
     questions_total: state.questions.length,
     correct_total: correct,
     score_percent: percent,
-    reward_unlocked: percent >= REWARD_TARGET,
+    reward_unlocked: percent >= state.rewardTarget,
+    reward_target: state.rewardTarget,
     selected_topic: getSelectedTopicLabel(),
     question_set: state.questions.map((question) => ({
       left: question.left,
@@ -420,7 +434,7 @@ function evaluateRound() {
   updateQuestionFeedback();
   submitBtn.disabled = true;
 
-  if (percent >= REWARD_TARGET) {
+  if (percent >= state.rewardTarget) {
     nextRoundBtn.hidden = true;
     updateStatus(`Stark gemacht. ${correct} von ${state.questions.length} Aufgaben sind richtig. Das ${getSelectedTopicLabel()}-Video laeuft jetzt fuer 2 Minuten.`);
     startReward();
@@ -428,7 +442,7 @@ function evaluateRound() {
   }
 
   updateStatus(`Diese Runde reicht noch nicht fuer die Belohnung. ${correct} von ${state.questions.length} richtig. Noch eine Runde mit ${state.questionsPerRound} neuen Aufgaben.`);
-  lockReward("Weiter ueben: Erst ab 95 Prozent wird das Video freigeschaltet.");
+  lockReward(`Weiter ueben: Erst ab ${state.rewardTarget} Prozent wird das Video freigeschaltet.`);
   nextRoundBtn.hidden = false;
 }
 
@@ -780,7 +794,7 @@ parentPinInput.addEventListener("keydown", (event) => {
   }
 });
 
-[childNameInput, questionCountInput].forEach((element) => {
+[childNameInput, questionCountInput, targetPercentInput].forEach((element) => {
   element.addEventListener("change", saveSettings);
 });
 

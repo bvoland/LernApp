@@ -18,7 +18,7 @@
         <p class="eyebrow">PWA fuer GitHub Pages</p>
         <h1>Mathe Mission</h1>
         <p class="hero-copy">
-          20 Aufgaben loesen, 95 Prozent richtig erreichen und danach fuer 2 Minuten ein Video als Belohnung sehen.
+          20 Aufgaben loesen, die Zielquote erreichen und danach fuer 2 Minuten ein Video als Belohnung sehen.
         </p>
       </div>
       <div class="hero-card">
@@ -46,7 +46,7 @@
           <input id="parent-pin" type="password" inputmode="numeric" maxlength="4" placeholder="Eltern-PIN">
           <button id="unlock-btn" class="secondary-btn" type="button">Freischalten</button>
         </div>
-        <p id="pin-feedback" class="hint">PIN `0922` entsperrt Aufgabenanzahl und Videoauswahl.</p>
+        <p id="pin-feedback" class="hint">Nur im Elternmodus lassen sich Einstellungen aendern.</p>
 
         <fieldset id="settings-fields" disabled>
           <label class="field">
@@ -57,6 +57,11 @@
           <label class="field">
             <span>Aufgaben pro Runde</span>
             <input id="question-count" type="number" min="5" max="40" value="20">
+          </label>
+
+          <label class="field">
+            <span>Zielquote in Prozent</span>
+            <input id="target-percent" type="number" min="50" max="100" value="95">
           </label>
 
           <div class="video-admin">
@@ -103,7 +108,7 @@
           </article>
           <article class="stat">
             <span class="stat-label">Ziel</span>
-            <strong>95%</strong>
+            <strong id="target-rate">95%</strong>
           </article>
         </div>
 
@@ -135,7 +140,7 @@
         <div class="reward-header">
           <div>
             <h2>Belohnung</h2>
-            <p id="reward-text">Video ist gesperrt, bis mindestens 95 Prozent erreicht sind.</p>
+            <p id="reward-text">Video ist gesperrt, bis die Zielquote erreicht ist.</p>
           </div>
           <div id="timer-pill" class="timer-pill">02:00</div>
         </div>

@@ -1,5 +1,6 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
+const APP_VERSION = "v2026.03.16-1";
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
@@ -55,6 +56,8 @@ const statsAllCorrect = document.getElementById("stats-all-correct");
 const statsAllError = document.getElementById("stats-all-error");
 const gradeBadge = document.getElementById("grade-badge");
 const statsCopy = document.getElementById("stats-copy");
+const appVersionText = document.getElementById("app-version");
+const refreshAppBtn = document.getElementById("refresh-app-btn");
 
 const state = {
   round: 1,
@@ -846,6 +849,48 @@ function registerServiceWorker() {
   });
 }
 
+function renderAppVersion() {
+  if (!appVersionText) return;
+  appVersionText.textContent = `Version: ${APP_VERSION}`;
+  void loadVersionMetadata();
+}
+
+async function loadVersionMetadata() {
+  if (!appVersionText) return;
+  try {
+    const response = await fetch(`./version.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    const extra = data.updatedAt ? ` | Stand: ${data.updatedAt}` : "";
+    appVersionText.textContent = `Version: ${data.version || APP_VERSION}${extra}`;
+  } catch (error) {
+    console.warn("Version konnte nicht geladen werden.", error);
+  }
+}
+
+async function clearAppCacheAndReload() {
+  if (refreshAppBtn) {
+    refreshAppBtn.disabled = true;
+    refreshAppBtn.textContent = "Aktualisiere...";
+  }
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.update()));
+    }
+
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+    }
+  } catch (error) {
+    console.warn("Cache konnte nicht vollstaendig geleert werden.", error);
+  }
+
+  window.location.reload();
+}
+
 startBtn.addEventListener("click", createRound);
 submitBtn.addEventListener("click", evaluateRound);
 nextRoundBtn.addEventListener("click", createRound);
@@ -856,6 +901,9 @@ childSelect.addEventListener("change", (event) => selectChild(event.target.value
 childGradeSelect.addEventListener("change", updateChildGrade);
 grade1RangeSelect.addEventListener("change", updateGrade1Settings);
 grade1OperationSelect.addEventListener("change", updateGrade1Settings);
+refreshAppBtn.addEventListener("click", () => {
+  void clearAppCacheAndReload();
+});
 parentPinInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -879,4 +927,5 @@ rewardText.textContent = "Ab der Zielquote werden Minuten gutgeschrieben. Je 10 
 overlayMessage.textContent = "Neue Minuten werden nach jeder erfolgreichen Runde automatisch dem Tageskonto gutgeschrieben.";
 updatePotentialMinutes();
 void loadHistory();
+renderAppVersion();
 registerServiceWorker();

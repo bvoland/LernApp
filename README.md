@@ -20,6 +20,7 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 - Ergebnisverlauf mit lokalem Speicher und optionaler Supabase-Synchronisierung
 - Statistik fuer Tag, Monat und Gesamt mit Aufgaben, richtigen Antworten und Fehlerquote
 - Sprachansage beim Start einer neuen Runde
+- Versionsanzeige mit Aktualisieren-Button zum Leeren des PWA-Caches
 - Installierbar als PWA und offline nutzbar
 
 ## GitHub Pages

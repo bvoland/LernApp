@@ -56,6 +56,12 @@ const state = {
   player: null
 };
 
+const NUMBER_RANGES = {
+  small: { min: 0, max: 20 },
+  medium: { min: 21, max: 100 },
+  large: { min: 101, max: 1000 }
+};
+
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -93,42 +99,120 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function buildQuestion() {
-  const operation = OPERATIONS[randomInt(0, OPERATIONS.length - 1)];
-
-  if (operation === "+") {
-    const left = randomInt(0, 900);
-    const right = randomInt(0, 1000 - left);
-    return { left, right, operation, answer: left + right };
+function pickRangeKey() {
+  const roll = Math.random();
+  if (roll < 0.4) {
+    return "small";
   }
-
-  if (operation === "-") {
-    const left = randomInt(0, 1000);
-    const right = randomInt(0, left);
-    return { left, right, operation, answer: left - right };
+  if (roll < 0.8) {
+    return "medium";
   }
+  return "large";
+}
 
-  if (operation === "*") {
-    const left = randomInt(1, 20);
-    const right = randomInt(1, Math.min(12, Math.floor(1000 / left)));
-    return { left, right, operation, answer: left * right };
-  }
+function randomFromRange(rangeKey, maxCap = Number.MAX_SAFE_INTEGER) {
+  const range = NUMBER_RANGES[rangeKey];
+  const max = Math.min(range.max, maxCap);
+  const min = Math.min(range.min, max);
+  return randomInt(min, max);
+}
 
-  const right = randomInt(1, 12);
-  const result = randomInt(1, 12);
+function buildAdditionQuestion(rangeKey) {
+  const left = randomFromRange(rangeKey, 950);
+  const remaining = 1000 - left;
+  const rightRange = remaining < 20 ? "small" : Math.random() < 0.5 ? rangeKey : pickRangeKey();
+  const right = randomFromRange(rightRange, remaining);
+  return { left, right, operation: "+", answer: left + right };
+}
+
+function buildSubtractionQuestion(rangeKey) {
+  const left = randomFromRange(rangeKey);
+  const rightRange = Math.random() < 0.65 ? rangeKey : pickRangeKey();
+  const right = randomFromRange(rightRange, left);
+  return { left, right, operation: "-", answer: left - right };
+}
+
+function buildMultiplicationQuestion(rangeKey) {
+  const factorsByRange = {
+    small: { leftMin: 1, leftMax: 10, rightMin: 1, rightMax: 10 },
+    medium: { leftMin: 2, leftMax: 12, rightMin: 2, rightMax: 12 },
+    large: { leftMin: 5, leftMax: 20, rightMin: 2, rightMax: 12 }
+  };
+
+  const range = factorsByRange[rangeKey];
+  const left = randomInt(range.leftMin, range.leftMax);
+  const maxRight = Math.min(range.rightMax, Math.floor(1000 / left));
+  const right = randomInt(range.rightMin, Math.max(range.rightMin, maxRight));
+  return { left, right, operation: "*", answer: left * right };
+}
+
+function buildDivisionQuestion(rangeKey) {
+  const divisorsByRange = {
+    small: { divisorMin: 1, divisorMax: 10, resultMin: 1, resultMax: 10 },
+    medium: { divisorMin: 2, divisorMax: 12, resultMin: 2, resultMax: 12 },
+    large: { divisorMin: 2, divisorMax: 12, resultMin: 5, resultMax: 20 }
+  };
+
+  const range = divisorsByRange[rangeKey];
+  const right = randomInt(range.divisorMin, range.divisorMax);
+  const maxResult = Math.min(range.resultMax, Math.floor(1000 / right));
+  const result = randomInt(range.resultMin, Math.max(range.resultMin, maxResult));
   const left = right * result;
-  return { left, right, operation, answer: result };
+  return { left, right, operation: "/", answer: result };
+}
+
+function questionKey(question) {
+  return `${question.operation}:${question.left}:${question.right}`;
+}
+
+function buildQuestion(usedKeys) {
+  let attempts = 0;
+
+  while (attempts < 200) {
+    const operation = OPERATIONS[randomInt(0, OPERATIONS.length - 1)];
+    const rangeKey = pickRangeKey();
+    let question;
+
+    if (operation === "+") {
+      question = buildAdditionQuestion(rangeKey);
+    } else if (operation === "-") {
+      question = buildSubtractionQuestion(rangeKey);
+    } else if (operation === "*") {
+      question = buildMultiplicationQuestion(rangeKey);
+    } else {
+      question = buildDivisionQuestion(rangeKey);
+    }
+
+    const key = questionKey(question);
+    if (!usedKeys.has(key)) {
+      usedKeys.add(key);
+      return question;
+    }
+
+    attempts += 1;
+  }
+
+  throw new Error("Konnte keine eindeutige Aufgabe fuer diese Runde erzeugen.");
 }
 
 function createRound() {
   const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
   state.questionsPerRound = questionCount;
-  state.questions = Array.from({ length: questionCount }, (_, index) => ({
-    id: index + 1,
-    ...buildQuestion(),
-    userAnswer: "",
-    isCorrect: null
-  }));
+  const usedKeys = new Set();
+
+  try {
+    state.questions = Array.from({ length: questionCount }, (_, index) => ({
+      id: index + 1,
+      ...buildQuestion(usedKeys),
+      userAnswer: "",
+      isCorrect: null
+    }));
+  } catch (error) {
+    console.warn("Runde konnte nicht erzeugt werden.", error);
+    updateStatus("Diese Runde konnte gerade nicht vorbereitet werden. Bitte noch einmal auf 'Neue Runde starten' tippen.");
+    return;
+  }
+
   state.isRoundActive = true;
 
   renderQuestions();

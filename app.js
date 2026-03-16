@@ -344,6 +344,7 @@ function renderHistory() {
     historyList.innerHTML = `<p class="empty-history">Noch keine gespeicherten Runden fuer ${state.selectedChild}.</p>`;
     updateMinuteSummary();
     updateAnalytics();
+    renderChildrenOverview();
     return;
   }
 

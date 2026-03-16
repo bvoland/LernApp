@@ -17,7 +17,7 @@
         <p class="eyebrow">PWA fuer GitHub Pages</p>
         <h1>Mathe Mission</h1>
         <p class="hero-copy">
-          20 Aufgaben loesen, die Zielquote erreichen und danach fuer die eingestellte Zeit ein Video als Belohnung sehen.
+          Aufgaben loesen, die Zielquote erreichen und dabei Minuten fuer spaetere Medienzeit ansparen.
         </p>
       </div>
       <div class="hero-card">
@@ -123,6 +123,10 @@
 
         <div class="stats-grid reward-stats">
           <article class="stat">
+            <span class="stat-label">Verfuegbar</span>
+            <strong id="available-minutes">0,0 Min</strong>
+          </article>
+          <article class="stat">
             <span class="stat-label">Heute erspielt</span>
             <strong id="earned-today">0,0 Min</strong>
           </article>
@@ -134,14 +138,44 @@
             <span class="stat-label">Naechste Runde</span>
             <strong id="potential-minutes">2,0 Min</strong>
           </article>
-          <article class="stat">
-            <span class="stat-label">Regel</span>
-            <strong>10 Aufgaben = 1 Min</strong>
-          </article>
+        </div>
+
+        <div class="actions reward-actions">
+          <button id="redeem-btn" class="secondary-btn" type="button">Minuten einloesen</button>
         </div>
 
         <div class="minutes-board">
           <p id="overlay-message">Neue Minuten werden nach jeder erfolgreichen Runde automatisch dem Tageskonto gutgeschrieben.</p>
+        </div>
+      </section>
+
+      <section class="panel analytics-panel">
+        <div class="section-head">
+          <div>
+            <h2>Statistik</h2>
+            <p class="section-copy">Lernfortschritt fuer heute, diesen Monat und insgesamt.</p>
+          </div>
+        </div>
+
+        <div class="analytics-grid">
+          <article class="analytics-card">
+            <h3>Heute</h3>
+            <p>Aufgaben: <strong id="stats-day-total">0</strong></p>
+            <p>Richtig: <strong id="stats-day-correct">0</strong></p>
+            <p>Fehlerquote: <strong id="stats-day-error">0%</strong></p>
+          </article>
+          <article class="analytics-card">
+            <h3>Monat</h3>
+            <p>Aufgaben: <strong id="stats-month-total">0</strong></p>
+            <p>Richtig: <strong id="stats-month-correct">0</strong></p>
+            <p>Fehlerquote: <strong id="stats-month-error">0%</strong></p>
+          </article>
+          <article class="analytics-card">
+            <h3>Gesamt</h3>
+            <p>Aufgaben: <strong id="stats-all-total">0</strong></p>
+            <p>Richtig: <strong id="stats-all-correct">0</strong></p>
+            <p>Fehlerquote: <strong id="stats-all-error">0%</strong></p>
+          </article>
         </div>
       </section>
     </main>

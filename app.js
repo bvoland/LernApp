@@ -2,12 +2,14 @@ const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
+const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
 const OPERATIONS = ["+", "-", "*", "/"];
 
 const startBtn = document.getElementById("start-btn");
 const submitBtn = document.getElementById("submit-btn");
 const nextRoundBtn = document.getElementById("next-round-btn");
 const unlockBtn = document.getElementById("unlock-btn");
+const redeemBtn = document.getElementById("redeem-btn");
 const parentPinInput = document.getElementById("parent-pin");
 const pinFeedback = document.getElementById("pin-feedback");
 const settingsState = document.getElementById("settings-state");
@@ -26,9 +28,19 @@ const timerPill = document.getElementById("timer-pill");
 const overlayMessage = document.getElementById("overlay-message");
 const historyList = document.getElementById("history-list");
 const storageState = document.getElementById("storage-state");
+const availableMinutes = document.getElementById("available-minutes");
 const earnedToday = document.getElementById("earned-today");
 const earnedTotal = document.getElementById("earned-total");
 const potentialMinutes = document.getElementById("potential-minutes");
+const statsDayTotal = document.getElementById("stats-day-total");
+const statsDayCorrect = document.getElementById("stats-day-correct");
+const statsDayError = document.getElementById("stats-day-error");
+const statsMonthTotal = document.getElementById("stats-month-total");
+const statsMonthCorrect = document.getElementById("stats-month-correct");
+const statsMonthError = document.getElementById("stats-month-error");
+const statsAllTotal = document.getElementById("stats-all-total");
+const statsAllCorrect = document.getElementById("stats-all-correct");
+const statsAllError = document.getElementById("stats-all-error");
 
 const state = {
   round: 1,
@@ -38,6 +50,7 @@ const state = {
   isRoundActive: false,
   settingsUnlocked: false,
   history: [],
+  redemptions: [],
   api: null,
   storageMode: "local"
 };
@@ -85,6 +98,20 @@ function saveSettings() {
   );
 }
 
+function readStorageArray(key) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(saved) ? saved : [];
+  } catch (error) {
+    console.warn(`Lokaler Speicher fuer ${key} konnte nicht geladen werden.`, error);
+    return [];
+  }
+}
+
+function writeStorageArray(key, entries, limit = 100) {
+  localStorage.setItem(key, JSON.stringify(entries.slice(0, limit)));
+}
+
 function setStorageMode(mode) {
   state.storageMode = mode;
   if (mode === "cloud") {
@@ -95,20 +122,6 @@ function setStorageMode(mode) {
 
   storageState.textContent = "Nur lokal";
   storageState.classList.remove("unlocked");
-}
-
-function readLocalHistory() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "[]");
-    return Array.isArray(saved) ? saved : [];
-  } catch (error) {
-    console.warn("Lokale Historie konnte nicht geladen werden.", error);
-    return [];
-  }
-}
-
-function writeLocalHistory(entries) {
-  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, 50)));
 }
 
 function randomInt(min, max) {
@@ -178,7 +191,6 @@ function questionKey(question) {
 
 function buildQuestion(usedKeys) {
   let attempts = 0;
-
   while (attempts < 200) {
     const operation = OPERATIONS[randomInt(0, OPERATIONS.length - 1)];
     const rangeKey = pickRangeKey();
@@ -194,10 +206,8 @@ function buildQuestion(usedKeys) {
       usedKeys.add(key);
       return question;
     }
-
     attempts += 1;
   }
-
   throw new Error("Konnte keine eindeutige Aufgabe fuer diese Runde erzeugen.");
 }
 
@@ -214,7 +224,6 @@ function getGreeting() {
 
 function renderQuestions() {
   quizForm.innerHTML = "";
-
   state.questions.forEach((question) => {
     const card = document.createElement("label");
     card.className = "question-card";
@@ -248,9 +257,7 @@ function renderQuestions() {
 function handleAnswerInput(event) {
   const id = Number(event.target.dataset.id);
   const question = state.questions.find((item) => item.id === id);
-  if (question) {
-    question.userAnswer = event.target.value;
-  }
+  if (question) question.userAnswer = event.target.value;
 }
 
 function updateStatus(message) {
@@ -265,7 +272,11 @@ function formatHistoryDate(isoString) {
 }
 
 function formatMinutes(minutes) {
-  return `${minutes.toFixed(1).replace(".", ",")} Min`;
+  return `${Number(minutes).toFixed(1).replace(".", ",")} Min`;
+}
+
+function formatPercent(value) {
+  return `${Math.round(value)}%`;
 }
 
 function calculateEarnedMinutes(questionCount) {
@@ -274,8 +285,9 @@ function calculateEarnedMinutes(questionCount) {
 
 function updatePotentialMinutes() {
   const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || state.questionsPerRound || 20));
-  potentialMinutes.textContent = formatMinutes(calculateEarnedMinutes(questionCount));
-  timerPill.textContent = potentialMinutes.textContent;
+  const minutes = calculateEarnedMinutes(questionCount);
+  potentialMinutes.textContent = formatMinutes(minutes);
+  timerPill.textContent = formatMinutes(getAvailableMinutes());
 }
 
 function localDateKey(value) {
@@ -286,44 +298,108 @@ function localDateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+function monthKey(value) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getAvailableMinutes() {
+  const earned = state.history.reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+  const redeemed = state.redemptions.reduce((sum, entry) => sum + Number(entry.minutes_redeemed || 0), 0);
+  return Math.max(0, earned - redeemed);
+}
+
+function buildStats(entries) {
+  const totalQuestions = entries.reduce((sum, entry) => sum + Number(entry.questions_total || 0), 0);
+  const totalCorrect = entries.reduce((sum, entry) => sum + Number(entry.correct_total || 0), 0);
+  const errorPercent = totalQuestions ? ((totalQuestions - totalCorrect) / totalQuestions) * 100 : 0;
+  return { totalQuestions, totalCorrect, errorPercent };
+}
+
+function updateAnalytics() {
+  const today = localDateKey(Date.now());
+  const month = monthKey(Date.now());
+  const dayEntries = state.history.filter((entry) => localDateKey(entry.created_at) === today);
+  const monthEntries = state.history.filter((entry) => monthKey(entry.created_at) === month);
+  const allEntries = state.history;
+
+  const dayStats = buildStats(dayEntries);
+  const monthStats = buildStats(monthEntries);
+  const allStats = buildStats(allEntries);
+
+  statsDayTotal.textContent = String(dayStats.totalQuestions);
+  statsDayCorrect.textContent = String(dayStats.totalCorrect);
+  statsDayError.textContent = formatPercent(dayStats.errorPercent);
+  statsMonthTotal.textContent = String(monthStats.totalQuestions);
+  statsMonthCorrect.textContent = String(monthStats.totalCorrect);
+  statsMonthError.textContent = formatPercent(monthStats.errorPercent);
+  statsAllTotal.textContent = String(allStats.totalQuestions);
+  statsAllCorrect.textContent = String(allStats.totalCorrect);
+  statsAllError.textContent = formatPercent(allStats.errorPercent);
+}
+
 function updateMinuteSummary() {
   const todayKey = localDateKey(Date.now());
   const todayMinutes = state.history
     .filter((entry) => localDateKey(entry.created_at) === todayKey)
     .reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
   const totalMinutes = state.history.reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+  const available = getAvailableMinutes();
 
+  availableMinutes.textContent = formatMinutes(available);
   earnedToday.textContent = formatMinutes(todayMinutes);
   earnedTotal.textContent = formatMinutes(totalMinutes);
+  timerPill.textContent = formatMinutes(available);
 }
 
 function renderHistory() {
   historyList.innerHTML = "";
-
-  if (!state.history.length) {
+  if (!state.history.length && !state.redemptions.length) {
     historyList.innerHTML = '<p class="empty-history">Noch keine gespeicherten Runden.</p>';
     updateMinuteSummary();
+    updateAnalytics();
     return;
   }
 
-  state.history.slice(0, 10).forEach((entry) => {
+  const combined = [
+    ...state.history.map((entry) => ({ type: "round", ...entry })),
+    ...state.redemptions.map((entry) => ({ type: "redeem", ...entry }))
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  combined.slice(0, 12).forEach((entry) => {
     const item = document.createElement("article");
     item.className = "history-item";
-    item.innerHTML = `
-      <div class="history-main">
-        <strong>${entry.child_name || "Kind"} - Runde ${entry.round_number}</strong>
-        <span>${entry.correct_total}/${entry.questions_total} richtig (${entry.score_percent}%)</span>
-      </div>
-      <div class="history-meta">
-        <span>${entry.reward_unlocked ? "Minuten gutgeschrieben" : "Keine Minuten"}</span>
-        <span>${formatMinutes(Number(entry.earned_minutes || 0))}</span>
-        <span>${formatHistoryDate(entry.created_at)}</span>
-      </div>
-    `;
+
+    if (entry.type === "redeem") {
+      item.innerHTML = `
+        <div class="history-main">
+          <strong>Minuten eingeloest</strong>
+          <span>${formatMinutes(Number(entry.minutes_redeemed || 0))}</span>
+        </div>
+        <div class="history-meta">
+          <span>Elternfreigabe</span>
+          <span>${formatHistoryDate(entry.created_at)}</span>
+        </div>
+      `;
+    } else {
+      item.innerHTML = `
+        <div class="history-main">
+          <strong>${entry.child_name || "Kind"} - Runde ${entry.round_number}</strong>
+          <span>${entry.correct_total}/${entry.questions_total} richtig (${entry.score_percent}%)</span>
+        </div>
+        <div class="history-meta">
+          <span>${entry.reward_unlocked ? "Minuten gutgeschrieben" : "Keine Minuten"}</span>
+          <span>${formatMinutes(Number(entry.earned_minutes || 0))}</span>
+          <span>${formatHistoryDate(entry.created_at)}</span>
+        </div>
+      `;
+    }
+
     historyList.append(item);
   });
 
   updateMinuteSummary();
+  updateAnalytics();
 }
 
 function createRound() {
@@ -357,7 +433,6 @@ function updateQuestionFeedback() {
   state.questions.forEach((question) => {
     const card = quizForm.querySelector(`[data-id="${question.id}"]`);
     if (!card) return;
-
     const feedback = card.querySelector(".question-feedback");
     card.classList.remove("correct", "wrong");
 
@@ -395,24 +470,45 @@ function currentRoundPayload(correct, percent, earnedMinutes) {
 }
 
 async function saveRoundResult(entry) {
-  const mergedHistory = [entry, ...state.history].slice(0, 50);
-  state.history = mergedHistory;
-  writeLocalHistory(mergedHistory);
+  state.history = [entry, ...state.history].slice(0, 100);
+  writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
   renderHistory();
 
-  if (!state.api || state.storageMode !== "cloud") {
-    return;
-  }
+  if (!state.api || state.storageMode !== "cloud") return;
 
   try {
     await state.api.createLearningRound(entry);
-    const latest = await state.api.listLearningRounds();
-    state.history = latest;
-    writeLocalHistory(latest);
+    const data = await state.api.listAll();
+    state.history = data.rounds;
+    state.redemptions = data.redemptions;
+    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
+    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
     renderHistory();
     setStorageMode("cloud");
   } catch (error) {
     console.warn("Supabase-Speicherung fehlgeschlagen, lokaler Fallback bleibt aktiv.", error);
+    setStorageMode("local");
+  }
+}
+
+async function saveRedemption(entry) {
+  state.redemptions = [entry, ...state.redemptions].slice(0, 100);
+  writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+  renderHistory();
+
+  if (!state.api || state.storageMode !== "cloud") return;
+
+  try {
+    await state.api.createRedemption(entry);
+    const data = await state.api.listAll();
+    state.history = data.rounds;
+    state.redemptions = data.redemptions;
+    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
+    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+    renderHistory();
+    setStorageMode("cloud");
+  } catch (error) {
+    console.warn("Supabase-Speicherung der Einloesung fehlgeschlagen.", error);
     setStorageMode("local");
   }
 }
@@ -429,7 +525,6 @@ function evaluateRound() {
 
   const percent = Math.round((correct / state.questions.length) * 100);
   const earnedMinutes = percent >= state.rewardTarget ? calculateEarnedMinutes(state.questions.length) : 0;
-
   void saveRoundResult(currentRoundPayload(correct, percent, earnedMinutes));
 
   correctCount.textContent = String(correct);
@@ -441,7 +536,7 @@ function evaluateRound() {
 
   if (earnedMinutes > 0) {
     rewardText.textContent = `Heute wurden gerade ${formatMinutes(earnedMinutes)} gutgeschrieben.`;
-    overlayMessage.textContent = `Starke Runde. Die erspielten Minuten koennt ihr jetzt selbst fuer Medienzeit verwenden.`;
+    overlayMessage.textContent = "Die Minuten bleiben angespart, bis ihr sie mit Elternfreigabe einloest.";
     updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden dem Minutenkonto hinzugefuegt.`);
   } else {
     rewardText.textContent = "Diese Runde war noch unter der Zielquote.";
@@ -481,45 +576,71 @@ function toggleSettingsLock() {
     setSettingsLock(false);
     return;
   }
-
   unlockSettings();
 }
 
 function speakRoundIntro() {
-  if (!("speechSynthesis" in window)) {
-    return;
-  }
-
+  if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance("Let's get ready to rumble!");
   utterance.lang = "en-US";
-  utterance.rate = 1;
-  utterance.pitch = 1;
   window.speechSynthesis.speak(utterance);
+}
+
+async function redeemMinutes() {
+  const available = getAvailableMinutes();
+  if (available <= 0) {
+    updateStatus("Es sind aktuell keine Minuten zum Einloesen vorhanden.");
+    return;
+  }
+
+  const enteredPin = window.prompt("Eltern-PIN zum Einloesen eingeben:");
+  if (enteredPin !== PARENT_PIN) {
+    updateStatus("Einloesen abgebrochen: Eltern-PIN war nicht korrekt.");
+    return;
+  }
+
+  const entry = {
+    minutes_redeemed: available,
+    created_at: new Date().toISOString()
+  };
+
+  await saveRedemption(entry);
+  rewardText.textContent = `${formatMinutes(available)} wurden eingeloest und das verfuegbare Konto auf null gesetzt.`;
+  overlayMessage.textContent = "Die Lernstatistik bleibt erhalten. Nur das verfuegbare Minutenkonto wurde zurueckgesetzt.";
+  updateStatus(`Einloesung bestaetigt. ${formatMinutes(available)} wurden vom verfuegbaren Minutenkonto abgezogen.`);
 }
 
 function createLocalApi() {
   return {
-    async listLearningRounds() {
-      return readLocalHistory();
+    async listAll() {
+      return {
+        rounds: readStorageArray(HISTORY_STORAGE_KEY),
+        redemptions: readStorageArray(REDEMPTION_STORAGE_KEY)
+      };
     },
     async createLearningRound(entry) {
-      const current = readLocalHistory();
-      writeLocalHistory([entry, ...current]);
+      const current = readStorageArray(HISTORY_STORAGE_KEY);
+      writeStorageArray(HISTORY_STORAGE_KEY, [entry, ...current], 100);
+    },
+    async createRedemption(entry) {
+      const current = readStorageArray(REDEMPTION_STORAGE_KEY);
+      writeStorageArray(REDEMPTION_STORAGE_KEY, [entry, ...current], 100);
     }
   };
 }
 
 function createSupabaseApi(cfg) {
   const root = cfg.supabaseUrl.replace(/\/+$/, "");
-  const base = root + "/rest/v1/learning_rounds";
+  const roundsBase = `${root}/rest/v1/learning_rounds`;
+  const redemptionsBase = `${root}/rest/v1/learning_minute_redemptions`;
 
   async function request(url, options) {
     const response = await fetch(url, {
       ...options,
       headers: {
         apikey: cfg.supabaseAnonKey,
-        Authorization: "Bearer " + cfg.supabaseAnonKey,
+        Authorization: `Bearer ${cfg.supabaseAnonKey}`,
         "Content-Type": "application/json",
         Prefer: "return=representation",
         ...(options && options.headers ? options.headers : {})
@@ -528,23 +649,41 @@ function createSupabaseApi(cfg) {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error("HTTP " + response.status + ": " + text);
+      throw new Error(`HTTP ${response.status}: ${text}`);
     }
 
     return response.status === 204 ? null : response.json();
   }
 
   return {
-    async listLearningRounds() {
-      const query =
+    async listAll() {
+      const roundsQuery =
         "?select=id,created_at,child_name,round_number,questions_total,correct_total,score_percent,reward_unlocked,reward_target,earned_minutes" +
         "&order=created_at.desc" +
-        "&limit=50";
-      const data = await request(base + query, { method: "GET" });
-      return Array.isArray(data) ? data : [];
+        "&limit=100";
+      const redemptionsQuery =
+        "?select=id,created_at,minutes_redeemed" +
+        "&order=created_at.desc" +
+        "&limit=100";
+
+      const [rounds, redemptions] = await Promise.all([
+        request(roundsBase + roundsQuery, { method: "GET" }),
+        request(redemptionsBase + redemptionsQuery, { method: "GET" })
+      ]);
+
+      return {
+        rounds: Array.isArray(rounds) ? rounds : [],
+        redemptions: Array.isArray(redemptions) ? redemptions : []
+      };
     },
     async createLearningRound(entry) {
-      await request(base, {
+      await request(roundsBase, {
+        method: "POST",
+        body: JSON.stringify([entry])
+      });
+    },
+    async createRedemption(entry) {
+      await request(redemptionsBase, {
         method: "POST",
         body: JSON.stringify([entry])
       });
@@ -553,7 +692,8 @@ function createSupabaseApi(cfg) {
 }
 
 async function loadHistory() {
-  state.history = readLocalHistory();
+  state.history = readStorageArray(HISTORY_STORAGE_KEY);
+  state.redemptions = readStorageArray(REDEMPTION_STORAGE_KEY);
   renderHistory();
 
   const cfg = window.APP_CONFIG || {};
@@ -566,12 +706,12 @@ async function loadHistory() {
   }
 
   try {
-    const rows = await state.api.listLearningRounds();
-    if (rows.length) {
-      state.history = rows;
-      writeLocalHistory(rows);
-      renderHistory();
-    }
+    const data = await state.api.listAll();
+    state.history = data.rounds;
+    state.redemptions = data.redemptions;
+    writeStorageArray(HISTORY_STORAGE_KEY, state.history, 100);
+    writeStorageArray(REDEMPTION_STORAGE_KEY, state.redemptions, 100);
+    renderHistory();
     setStorageMode("cloud");
   } catch (error) {
     console.warn("Supabase noch nicht verfuegbar, lokaler Speicher bleibt aktiv.", error);
@@ -581,19 +721,21 @@ async function loadHistory() {
 }
 
 function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch((error) => {
-        console.warn("Service Worker konnte nicht registriert werden.", error);
-      });
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((error) => {
+      console.warn("Service Worker konnte nicht registriert werden.", error);
     });
-  }
+  });
 }
 
 startBtn.addEventListener("click", createRound);
 submitBtn.addEventListener("click", evaluateRound);
 nextRoundBtn.addEventListener("click", createRound);
 unlockBtn.addEventListener("click", toggleSettingsLock);
+redeemBtn.addEventListener("click", () => {
+  void redeemMinutes();
+});
 parentPinInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();

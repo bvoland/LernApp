@@ -10,9 +10,10 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 - Je 10 Aufgaben gibt es 1,0 Minute Medienzeit
 - Gutschrift nur bei erreichter Zielquote
 - Elternmodus kann die Zielquote anpassen
-- Tageskonto und Gesamtstand der erspielten Minuten
+- Tageskonto, Gesamtguthaben und geschuetztes Einloesen per Eltern-PIN
 - Elternschutz: Einstellungen nur im Elternmodus aenderbar
 - Ergebnisverlauf mit lokalem Speicher und optionaler Supabase-Synchronisierung
+- Statistik fuer Tag, Monat und Gesamt mit Aufgaben, richtigen Antworten und Fehlerquote
 - Sprachansage beim Start einer neuen Runde
 - Installierbar als PWA und offline nutzbar
 
@@ -26,4 +27,5 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 
 1. In Supabase SQL Editor den Inhalt aus `supabase.sql` ausfuehren.
 2. Die Verbindung ist in `config.js` bereits auf dieselbe Supabase-Instanz wie in `TaskApp` gesetzt.
-3. Solange die Tabelle `learning_rounds` noch nicht existiert, speichert die App automatisch nur lokal im Browser.
+3. Das SQL legt sowohl `learning_rounds` als auch `learning_minute_redemptions` an.
+4. Solange die Tabellen noch nicht existieren, speichert die App automatisch nur lokal im Browser.

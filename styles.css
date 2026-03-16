@@ -331,6 +331,11 @@ h1 {
   flex-wrap: wrap;
 }
 
+.reward-actions {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
 .reward-header {
   display: flex;
   justify-content: space-between;
@@ -341,6 +346,27 @@ h1 {
 
 .reward-stats {
   margin-bottom: 16px;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analytics-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(22, 50, 79, 0.08);
+}
+
+.analytics-card h3 {
+  margin: 0 0 12px;
+}
+
+.analytics-card p {
+  margin-bottom: 8px;
 }
 
 .history-list {
@@ -409,7 +435,8 @@ code {
   }
 
   .stats-grid,
-  .quiz-form {
+  .quiz-form,
+  .analytics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -445,7 +472,8 @@ code {
 
   .pin-row,
   .stats-grid,
-  .quiz-form {
+  .quiz-form,
+  .analytics-grid {
     grid-template-columns: 1fr;
   }
 

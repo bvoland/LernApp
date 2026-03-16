@@ -49,3 +49,25 @@ on public.learning_rounds
 for insert
 to anon
 with check (true);
+
+create table if not exists public.learning_minute_redemptions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  minutes_redeemed numeric(6,1) not null default 0 check (minutes_redeemed >= 0)
+);
+
+alter table public.learning_minute_redemptions enable row level security;
+
+drop policy if exists "anon_read_learning_redemptions" on public.learning_minute_redemptions;
+create policy "anon_read_learning_redemptions"
+on public.learning_minute_redemptions
+for select
+to anon
+using (true);
+
+drop policy if exists "anon_insert_learning_redemptions" on public.learning_minute_redemptions;
+create policy "anon_insert_learning_redemptions"
+on public.learning_minute_redemptions
+for insert
+to anon
+with check (true);

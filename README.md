@@ -7,8 +7,10 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 - Addition, Subtraktion, Multiplikation und Division im Zahlenbereich bis 1000
 - Standardmaessig 20 Aufgaben pro Runde, anpassbar zwischen 5 und 40
 - Auswertung aller Antworten mit Anzeige der richtigen Ergebnisse
-- Freischaltung eines YouTube-Videos fuer 2 Minuten bei mindestens 95 Prozent
+- Themenauswahl fuer Minecraft, Robotik und Lego
+- Freischaltung des ausgewaehlten YouTube-Videos fuer 2 Minuten bei mindestens 95 Prozent
 - Danach erneute Sperre, bis wieder eine komplette neue Runde geloest wurde
+- Elternschutz: Einstellungen und Video-Links nur mit PIN `0922` aenderbar
 - Installierbar als PWA und offline nutzbar
 
 ## GitHub Pages
@@ -19,8 +21,10 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 
 ## Hinweis zu YouTube
 
-Fuer das Belohnungsvideo sollte eine Embed-URL eingetragen werden, zum Beispiel:
+Im Elternbereich kann fuer jedes Thema eine YouTube-URL oder Embed-URL eingetragen werden, zum Beispiel:
 
 `https://www.youtube.com/embed/VIDEO_ID`
 
 Normale YouTube-Links werden zwar umgewandelt, aber manche Videos verbieten Einbettung. In dem Fall muss ein anderes Video verwendet werden.
+
+Direkte eingebettete Suchergebnisse von YouTube werden nicht verwendet. Stattdessen wird pro Thema ein hinterlegtes Video abgespielt und nach 2 Minuten automatisch pausiert und wieder gesperrt.

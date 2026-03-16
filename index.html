@@ -8,6 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://www.youtube.com/iframe_api"></script>
   <title>Mathe Mission</title>
 </head>
 <body>
@@ -33,25 +34,55 @@
 
     <main class="layout">
       <section class="panel settings-panel">
-        <h2>Einstellungen</h2>
-        <label class="field">
-          <span>Name</span>
-          <input id="child-name" type="text" maxlength="30" placeholder="z. B. Leo">
-        </label>
+        <div class="section-head">
+          <div>
+            <h2>Einstellungen</h2>
+            <p class="section-copy">Aenderungen sind nur mit Eltern-PIN moeglich.</p>
+          </div>
+          <span id="settings-state" class="lock-chip">Gesperrt</span>
+        </div>
 
-        <label class="field">
-          <span>Aufgaben pro Runde</span>
-          <input id="question-count" type="number" min="5" max="40" value="20">
-        </label>
+        <div class="pin-row">
+          <input id="parent-pin" type="password" inputmode="numeric" maxlength="4" placeholder="Eltern-PIN">
+          <button id="unlock-btn" class="secondary-btn" type="button">Freischalten</button>
+        </div>
+        <p id="pin-feedback" class="hint">PIN `0922` entsperrt Aufgabenanzahl und Videoauswahl.</p>
 
-        <label class="field">
-          <span>YouTube Embed URL</span>
-          <input id="video-url" type="url" placeholder="https://www.youtube.com/embed/...">
-        </label>
+        <fieldset id="settings-fields" disabled>
+          <label class="field">
+            <span>Name</span>
+            <input id="child-name" type="text" maxlength="30" placeholder="z. B. Leo">
+          </label>
 
-        <p class="hint">
-          Tipp: Am besten eine Embed-URL wie <code>https://www.youtube.com/embed/VIDEO_ID</code> verwenden. Manche Videos erlauben kein Einbetten.
-        </p>
+          <label class="field">
+            <span>Aufgaben pro Runde</span>
+            <input id="question-count" type="number" min="5" max="40" value="20">
+          </label>
+
+          <div class="video-admin">
+            <div class="section-head compact">
+              <div>
+                <h3>Belohnungsvideos</h3>
+                <p class="section-copy">Je Thema eine YouTube-URL oder Embed-URL eintragen.</p>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Minecraft</span>
+              <input id="video-minecraft" type="url" placeholder="https://www.youtube.com/watch?v=...">
+            </label>
+
+            <label class="field">
+              <span>Robotik</span>
+              <input id="video-robotik" type="url" placeholder="https://www.youtube.com/watch?v=...">
+            </label>
+
+            <label class="field">
+              <span>Lego</span>
+              <input id="video-lego" type="url" placeholder="https://www.youtube.com/watch?v=...">
+            </label>
+          </div>
+        </fieldset>
 
         <button id="start-btn" class="primary-btn">Neue Runde starten</button>
       </section>
@@ -96,18 +127,16 @@
           <div id="timer-pill" class="timer-pill">02:00</div>
         </div>
 
+        <div class="topic-picker">
+          <p class="topic-title">Thema aussuchen</p>
+          <div id="topic-options" class="topic-options"></div>
+        </div>
+
         <div id="video-shell" class="video-shell locked">
           <div id="video-overlay" class="video-overlay">
             <p id="overlay-message">Nach einer erfolgreichen Runde startet hier das Video fuer 2 Minuten.</p>
           </div>
-          <iframe
-            id="reward-video"
-            title="Belohnungsvideo"
-            src=""
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-            referrerpolicy="strict-origin-when-cross-origin"
-          ></iframe>
+          <div id="reward-video" class="player-host" aria-label="Belohnungsvideo"></div>
         </div>
       </section>
     </main>

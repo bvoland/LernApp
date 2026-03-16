@@ -1,9 +1,24 @@
-const questionCountInput = document.getElementById("question-count");
-const childNameInput = document.getElementById("child-name");
-const videoUrlInput = document.getElementById("video-url");
+const PARENT_PIN = "0922";
+const REWARD_TARGET = 95;
+const REWARD_SECONDS = 120;
+const STORAGE_KEY = "mathe-mission-state";
+const OPERATIONS = ["+", "-", "*", "/"];
+const TOPICS = [
+  { key: "minecraft", label: "Minecraft", searchText: "Minecraft" },
+  { key: "robotik", label: "Robotik", searchText: "Robotik" },
+  { key: "lego", label: "Lego", searchText: "Lego" }
+];
+
 const startBtn = document.getElementById("start-btn");
 const submitBtn = document.getElementById("submit-btn");
 const nextRoundBtn = document.getElementById("next-round-btn");
+const unlockBtn = document.getElementById("unlock-btn");
+const parentPinInput = document.getElementById("parent-pin");
+const pinFeedback = document.getElementById("pin-feedback");
+const settingsState = document.getElementById("settings-state");
+const settingsFields = document.getElementById("settings-fields");
+const childNameInput = document.getElementById("child-name");
+const questionCountInput = document.getElementById("question-count");
 const quizForm = document.getElementById("quiz-form");
 const roundLabel = document.getElementById("round-label");
 const correctCount = document.getElementById("correct-count");
@@ -11,14 +26,15 @@ const scoreRate = document.getElementById("score-rate");
 const statusBanner = document.getElementById("status-banner");
 const rewardText = document.getElementById("reward-text");
 const timerPill = document.getElementById("timer-pill");
-const rewardVideo = document.getElementById("reward-video");
 const videoShell = document.getElementById("video-shell");
 const overlayMessage = document.getElementById("overlay-message");
+const topicOptions = document.getElementById("topic-options");
 
-const REWARD_TARGET = 95;
-const REWARD_SECONDS = 120;
-const STORAGE_KEY = "mathe-mission-state";
-const OPERATIONS = ["+", "-", "*", "/"];
+const videoInputs = {
+  minecraft: document.getElementById("video-minecraft"),
+  robotik: document.getElementById("video-robotik"),
+  lego: document.getElementById("video-lego")
+};
 
 const state = {
   round: 1,
@@ -27,31 +43,48 @@ const state = {
   isRoundActive: false,
   rewardTimer: null,
   rewardSecondsLeft: REWARD_SECONDS,
+  settingsUnlocked: false,
+  selectedTopic: "minecraft",
+  videoCatalog: {
+    minecraft: "",
+    robotik: "",
+    lego: ""
+  },
+  playerReady: false,
+  pendingVideoId: "",
+  activeVideoId: "",
+  player: null
 };
 
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     childNameInput.value = saved.childName || "";
-    videoUrlInput.value = saved.videoUrl || "";
-    if (saved.questionsPerRound) {
-      questionCountInput.value = saved.questionsPerRound;
-    }
-    if (saved.round) {
-      state.round = saved.round;
-      roundLabel.textContent = String(state.round);
-    }
+    questionCountInput.value = saved.questionsPerRound || 20;
+    state.round = saved.round || 1;
+    roundLabel.textContent = String(state.round);
+    state.selectedTopic = saved.selectedTopic || "minecraft";
+    state.videoCatalog = {
+      minecraft: saved.videoCatalog?.minecraft || "",
+      robotik: saved.videoCatalog?.robotik || "",
+      lego: saved.videoCatalog?.lego || ""
+    };
   } catch (error) {
     console.warn("Konnte gespeicherte Einstellungen nicht laden.", error);
   }
+
+  Object.entries(videoInputs).forEach(([key, input]) => {
+    input.value = state.videoCatalog[key] || "";
+  });
 }
 
 function saveSettings() {
   const payload = {
     childName: childNameInput.value.trim(),
-    videoUrl: videoUrlInput.value.trim(),
     questionsPerRound: Number(questionCountInput.value) || 20,
     round: state.round,
+    selectedTopic: state.selectedTopic,
+    videoCatalog: { ...state.videoCatalog }
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -76,14 +109,13 @@ function buildQuestion() {
   }
 
   if (operation === "*") {
-    const left = randomInt(0, 20);
-    const right = randomInt(0, Math.floor(1000 / Math.max(left || 1, 1)));
-    const safeRight = Math.min(right, 12);
-    return { left, right: safeRight, operation, answer: left * safeRight };
+    const left = randomInt(1, 20);
+    const right = randomInt(1, Math.min(12, Math.floor(1000 / left)));
+    return { left, right, operation, answer: left * right };
   }
 
   const right = randomInt(1, 12);
-  const result = randomInt(0, 12);
+  const result = randomInt(1, 12);
   const left = right * result;
   return { left, right, operation, answer: result };
 }
@@ -95,7 +127,7 @@ function createRound() {
     id: index + 1,
     ...buildQuestion(),
     userAnswer: "",
-    isCorrect: null,
+    isCorrect: null
   }));
   state.isRoundActive = true;
 
@@ -194,14 +226,15 @@ function evaluateRound() {
   submitBtn.disabled = true;
 
   if (percent >= REWARD_TARGET) {
-    updateStatus(`Stark gemacht. ${correct} von ${state.questions.length} Aufgaben sind richtig. Die Belohnung laeuft jetzt fuer 2 Minuten.`);
     nextRoundBtn.hidden = true;
+    updateStatus(`Stark gemacht. ${correct} von ${state.questions.length} Aufgaben sind richtig. Das ${getSelectedTopicLabel()}-Video laeuft jetzt fuer 2 Minuten.`);
     startReward();
-  } else {
-    updateStatus(`Diese Runde reicht noch nicht fuer die Belohnung. ${correct} von ${state.questions.length} richtig. Noch eine Runde mit ${state.questionsPerRound} neuen Aufgaben.`);
-    lockReward("Weiter ueben: Erst ab 95 Prozent wird das Video freigeschaltet.");
-    nextRoundBtn.hidden = false;
+    return;
   }
+
+  updateStatus(`Diese Runde reicht noch nicht fuer die Belohnung. ${correct} von ${state.questions.length} richtig. Noch eine Runde mit ${state.questionsPerRound} neuen Aufgaben.`);
+  lockReward("Weiter ueben: Erst ab 95 Prozent wird das Video freigeschaltet.");
+  nextRoundBtn.hidden = false;
 }
 
 function updateQuestionFeedback() {
@@ -229,6 +262,72 @@ function updateStatus(message) {
   statusBanner.textContent = message;
 }
 
+function renderTopicOptions() {
+  topicOptions.innerHTML = "";
+
+  TOPICS.forEach((topic) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "topic-btn";
+    button.dataset.topic = topic.key;
+
+    if (state.selectedTopic === topic.key) {
+      button.classList.add("active");
+    }
+
+    const isConfigured = Boolean(state.videoCatalog[topic.key]);
+    button.innerHTML = `
+      <span class="topic-name">${topic.label}</span>
+      <span class="topic-meta">${isConfigured ? "Video bereit" : "Noch kein Video"}</span>
+    `;
+    button.addEventListener("click", () => selectTopic(topic.key));
+    topicOptions.append(button);
+  });
+}
+
+function selectTopic(topicKey) {
+  state.selectedTopic = topicKey;
+  renderTopicOptions();
+  saveSettings();
+
+  if (!state.videoCatalog[topicKey]) {
+    rewardText.textContent = `Fuer ${getSelectedTopicLabel()} ist noch kein Video hinterlegt.`;
+  } else if (!state.rewardTimer) {
+    rewardText.textContent = `${getSelectedTopicLabel()} ist ausgewaehlt. Das Video startet nach einer erfolgreichen Runde.`;
+  }
+}
+
+function unlockSettings() {
+  if (parentPinInput.value.trim() !== PARENT_PIN) {
+    pinFeedback.textContent = "PIN falsch. Einstellungen bleiben gesperrt.";
+    parentPinInput.value = "";
+    setSettingsLock(false);
+    return;
+  }
+
+  parentPinInput.value = "";
+  pinFeedback.textContent = "Einstellungen sind entsperrt.";
+  setSettingsLock(true);
+}
+
+function setSettingsLock(isUnlocked) {
+  state.settingsUnlocked = isUnlocked;
+  settingsFields.disabled = !isUnlocked;
+  settingsState.textContent = isUnlocked ? "Entsperrt" : "Gesperrt";
+  settingsState.classList.toggle("unlocked", isUnlocked);
+  unlockBtn.textContent = isUnlocked ? "Sperren" : "Freischalten";
+}
+
+function toggleSettingsLock() {
+  if (state.settingsUnlocked) {
+    pinFeedback.textContent = "Einstellungen wieder gesperrt.";
+    setSettingsLock(false);
+    return;
+  }
+
+  unlockSettings();
+}
+
 function normalizeVideoUrl(url) {
   const trimmed = url.trim();
   if (!trimmed) {
@@ -236,7 +335,7 @@ function normalizeVideoUrl(url) {
   }
 
   if (trimmed.includes("/embed/")) {
-    return appendAutoplay(trimmed);
+    return trimmed;
   }
 
   try {
@@ -244,14 +343,14 @@ function normalizeVideoUrl(url) {
     if (parsed.hostname.includes("youtube.com")) {
       const videoId = parsed.searchParams.get("v");
       if (videoId) {
-        return appendAutoplay(`https://www.youtube.com/embed/${videoId}`);
+        return `https://www.youtube.com/embed/${videoId}`;
       }
     }
 
     if (parsed.hostname === "youtu.be") {
       const videoId = parsed.pathname.replace("/", "");
       if (videoId) {
-        return appendAutoplay(`https://www.youtube.com/embed/${videoId}`);
+        return `https://www.youtube.com/embed/${videoId}`;
       }
     }
   } catch (error) {
@@ -261,42 +360,73 @@ function normalizeVideoUrl(url) {
   return "";
 }
 
-function appendAutoplay(url) {
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}autoplay=1&rel=0`;
+function extractVideoId(url) {
+  const normalized = normalizeVideoUrl(url);
+  if (!normalized) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    return parts[parts.length - 1] || "";
+  } catch (error) {
+    console.warn("Konnte Video-ID nicht lesen.", error);
+    return "";
+  }
+}
+
+function getSelectedTopicLabel() {
+  return TOPICS.find((topic) => topic.key === state.selectedTopic)?.label || "Video";
+}
+
+function handleVideoInputChange(event) {
+  const topicKey = event.target.id.replace("video-", "");
+  state.videoCatalog[topicKey] = event.target.value.trim();
+  renderTopicOptions();
+  saveSettings();
 }
 
 function startReward() {
-  const embedUrl = normalizeVideoUrl(videoUrlInput.value);
-  if (!embedUrl) {
-    lockReward("Die Runde ist geschafft, aber es fehlt noch eine gueltige YouTube Embed URL.");
-    rewardText.textContent = "Bitte eine gueltige YouTube Embed URL eintragen.";
+  const videoUrl = state.videoCatalog[state.selectedTopic];
+  const videoId = extractVideoId(videoUrl);
+
+  if (!videoId) {
+    lockReward(`Fuer ${getSelectedTopicLabel()} ist noch keine gueltige YouTube-URL eingetragen.`);
+    rewardText.textContent = `Bitte im Elternbereich ein gueltiges ${getSelectedTopicLabel()}-Video hinterlegen.`;
     return;
   }
 
   clearInterval(state.rewardTimer);
   state.rewardSecondsLeft = REWARD_SECONDS;
-  rewardVideo.src = embedUrl;
+  state.activeVideoId = videoId;
+  state.pendingVideoId = videoId;
   videoShell.classList.add("unlocked");
   overlayMessage.textContent = "";
-  rewardText.textContent = "Das Video ist jetzt freigeschaltet.";
+  rewardText.textContent = `${getSelectedTopicLabel()} laeuft jetzt fuer 2 Minuten.`;
   updateTimerText();
+  playSelectedVideo();
 
   state.rewardTimer = window.setInterval(() => {
     state.rewardSecondsLeft -= 1;
     updateTimerText();
 
     if (state.rewardSecondsLeft <= 0) {
-      clearInterval(state.rewardTimer);
-      state.rewardTimer = null;
-      state.round += 1;
-      roundLabel.textContent = String(state.round);
-      saveSettings();
-      lockReward(`Die 2 Minuten sind vorbei. Jetzt muessen erst wieder ${state.questionsPerRound} Aufgaben geloest werden.`);
-      updateStatus(`Belohnungszeit beendet. Starte Runde ${state.round} mit ${state.questionsPerRound} neuen Aufgaben.`);
-      nextRoundBtn.hidden = false;
+      finishRewardWindow();
     }
   }, 1000);
+}
+
+function finishRewardWindow() {
+  clearInterval(state.rewardTimer);
+  state.rewardTimer = null;
+  pausePlayer();
+  state.round += 1;
+  roundLabel.textContent = String(state.round);
+  saveSettings();
+  lockReward(`Die 2 Minuten sind vorbei. Jetzt muessen erst wieder ${state.questionsPerRound} Aufgaben geloest werden.`);
+  updateStatus(`Belohnungszeit beendet. Starte Runde ${state.round} mit ${state.questionsPerRound} neuen Aufgaben.`);
+  nextRoundBtn.hidden = false;
 }
 
 function updateTimerText() {
@@ -310,11 +440,47 @@ function lockReward(message) {
   state.rewardTimer = null;
   state.rewardSecondsLeft = REWARD_SECONDS;
   updateTimerText();
-  rewardVideo.src = "";
+  pausePlayer();
   videoShell.classList.remove("unlocked");
   overlayMessage.textContent = message;
   rewardText.textContent = "Video ist gesperrt, bis die naechste starke Runde geschafft ist.";
 }
+
+function pausePlayer() {
+  if (state.player && state.playerReady) {
+    state.player.pauseVideo();
+  }
+}
+
+function playSelectedVideo() {
+  if (!state.pendingVideoId) {
+    return;
+  }
+
+  if (state.player && state.playerReady) {
+    state.player.loadVideoById(state.pendingVideoId);
+    state.pendingVideoId = "";
+  }
+}
+
+function onYouTubeIframeAPIReady() {
+  state.player = new window.YT.Player("reward-video", {
+    videoId: "",
+    playerVars: {
+      autoplay: 1,
+      rel: 0,
+      modestbranding: 1
+    },
+    events: {
+      onReady: () => {
+        state.playerReady = true;
+        playSelectedVideo();
+      }
+    }
+  });
+}
+
+window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
 
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -329,11 +495,25 @@ function registerServiceWorker() {
 startBtn.addEventListener("click", createRound);
 submitBtn.addEventListener("click", evaluateRound);
 nextRoundBtn.addEventListener("click", createRound);
+unlockBtn.addEventListener("click", toggleSettingsLock);
+parentPinInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    toggleSettingsLock();
+  }
+});
 
-[childNameInput, questionCountInput, videoUrlInput].forEach((element) => {
+[childNameInput, questionCountInput].forEach((element) => {
   element.addEventListener("change", saveSettings);
 });
 
+Object.values(videoInputs).forEach((input) => {
+  input.addEventListener("change", handleVideoInputChange);
+});
+
 loadSettings();
-lockReward("Nach einer erfolgreichen Runde startet hier das Video fuer 2 Minuten.");
+setSettingsLock(false);
+renderTopicOptions();
+selectTopic(state.selectedTopic);
+lockReward("Nach einer erfolgreichen Runde startet hier das ausgewaehlte Video fuer 2 Minuten.");
 registerServiceWorker();

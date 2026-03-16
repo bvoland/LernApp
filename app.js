@@ -5,10 +5,10 @@ const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
 const PROFILES_STORAGE_KEY = "mathe-mission-profiles";
 const DEFAULT_PROFILES = [
-  { name: "Lukas", currentGrade: 3, minGrade: 3, maxGrade: 3 },
-  { name: "Amelie", currentGrade: 1, minGrade: 1, maxGrade: 3 },
-  { name: "Kathi", currentGrade: 3, minGrade: 3, maxGrade: 3 },
-  { name: "Benny", currentGrade: 3, minGrade: 3, maxGrade: 3 }
+  { name: "Lukas", currentGrade: 3, minGrade: 3, maxGrade: 3, grade1Range: 10, grade1Operation: "mixed" },
+  { name: "Amelie", currentGrade: 1, minGrade: 1, maxGrade: 3, grade1Range: 10, grade1Operation: "mixed" },
+  { name: "Kathi", currentGrade: 3, minGrade: 3, maxGrade: 3, grade1Range: 10, grade1Operation: "mixed" },
+  { name: "Benny", currentGrade: 3, minGrade: 3, maxGrade: 3, grade1Range: 10, grade1Operation: "mixed" }
 ];
 
 const startBtn = document.getElementById("start-btn");
@@ -24,6 +24,9 @@ const settingsFields = document.getElementById("settings-fields");
 const childNameInput = document.getElementById("child-name");
 const childSelect = document.getElementById("child-select");
 const childGradeSelect = document.getElementById("child-grade");
+const grade1Settings = document.getElementById("grade1-settings");
+const grade1RangeSelect = document.getElementById("grade1-range");
+const grade1OperationSelect = document.getElementById("grade1-operation");
 const questionCountInput = document.getElementById("question-count");
 const targetPercentInput = document.getElementById("target-percent");
 const quizForm = document.getElementById("quiz-form");
@@ -69,7 +72,14 @@ const state = {
 };
 
 function getProfile(name) {
-  return state.profiles.find((profile) => profile.name === name) || { name, currentGrade: 3, minGrade: 3, maxGrade: 3 };
+  return state.profiles.find((profile) => profile.name === name) || {
+    name,
+    currentGrade: 3,
+    minGrade: 3,
+    maxGrade: 3,
+    grade1Range: 10,
+    grade1Operation: "mixed"
+  };
 }
 
 function currentGrade() {
@@ -101,7 +111,9 @@ function loadProfiles() {
       name: profile.name,
       currentGrade: Number(profile.currentGrade || profile.grade) || 3,
       minGrade: Number(profile.minGrade) || 1,
-      maxGrade: Number(profile.maxGrade) || 3
+      maxGrade: Number(profile.maxGrade) || 3,
+      grade1Range: Number(profile.grade1Range) || 10,
+      grade1Operation: profile.grade1Operation || "mixed"
     });
   });
 
@@ -123,6 +135,7 @@ function renderChildOptions() {
   });
   childSelect.value = state.selectedChild;
   renderGradeOptions();
+  renderGrade1Settings();
   gradeBadge.textContent = `${currentGrade()}. Klasse`;
   statsCopy.textContent = `Lernfortschritt von ${state.selectedChild} fuer heute, diesen Monat und insgesamt.`;
 }
@@ -137,6 +150,14 @@ function renderGradeOptions() {
     childGradeSelect.append(option);
   }
   childGradeSelect.value = String(profile.currentGrade);
+}
+
+function renderGrade1Settings() {
+  const profile = getProfile(state.selectedChild);
+  const isGrade1 = Number(profile.currentGrade) === 1;
+  grade1Settings.hidden = !isGrade1;
+  grade1RangeSelect.value = String(profile.grade1Range || 10);
+  grade1OperationSelect.value = profile.grade1Operation || "mixed";
 }
 
 function loadSettings() {
@@ -335,12 +356,17 @@ function buildQuestionForGrade(grade, usedKeys) {
     let question;
 
     if (grade === 1) {
-      if (Math.random() < 0.5) {
-        const left = randomInt(0, 20);
-        const right = randomInt(0, 20 - left);
+      const profile = getProfile(state.selectedChild);
+      const limit = Number(profile.grade1Range) || 10;
+      const mode = profile.grade1Operation || "mixed";
+      const operation = mode === "add" ? "+" : mode === "sub" ? "-" : Math.random() < 0.5 ? "+" : "-";
+
+      if (operation === "+") {
+        const left = randomInt(0, limit);
+        const right = randomInt(0, limit - left);
         question = { left, right, operation: "+", answer: left + right };
       } else {
-        const left = randomInt(0, 20);
+        const left = randomInt(0, limit);
         const right = randomInt(0, left);
         question = { left, right, operation: "-", answer: left - right };
       }
@@ -693,7 +719,7 @@ function addChild() {
   const name = childNameInput.value.trim();
   if (!name) return;
   if (!state.profiles.some((profile) => profile.name === name)) {
-    state.profiles.push({ name, currentGrade: 1, minGrade: 1, maxGrade: 3 });
+    state.profiles.push({ name, currentGrade: 1, minGrade: 1, maxGrade: 3, grade1Range: 10, grade1Operation: "mixed" });
     saveProfiles();
   }
   childNameInput.value = "";
@@ -707,6 +733,15 @@ function updateChildGrade() {
   saveProfiles();
   renderChildOptions();
   updateStatus(`${state.selectedChild} ist jetzt fuer Aufgaben der ${profile.currentGrade}. Klasse freigegeben.`);
+}
+
+function updateGrade1Settings() {
+  const profile = getProfile(state.selectedChild);
+  profile.grade1Range = Number(grade1RangeSelect.value) || 10;
+  profile.grade1Operation = grade1OperationSelect.value || "mixed";
+  saveProfiles();
+  renderGrade1Settings();
+  updateStatus(`Die 1.-Klasse-Uebung fuer ${state.selectedChild} wurde angepasst.`);
 }
 
 function createLocalApi() {
@@ -819,6 +854,8 @@ redeemBtn.addEventListener("click", () => { void redeemMinutes(); });
 addChildBtn.addEventListener("click", addChild);
 childSelect.addEventListener("change", (event) => selectChild(event.target.value));
 childGradeSelect.addEventListener("change", updateChildGrade);
+grade1RangeSelect.addEventListener("change", updateGrade1Settings);
+grade1OperationSelect.addEventListener("change", updateGrade1Settings);
 parentPinInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();

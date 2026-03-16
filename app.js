@@ -1,6 +1,6 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
-const REWARD_SECONDS = 120;
+const DEFAULT_REWARD_MINUTES = 2;
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const OPERATIONS = ["+", "-", "*", "/"];
@@ -44,6 +44,7 @@ const settingsFields = document.getElementById("settings-fields");
 const childNameInput = document.getElementById("child-name");
 const questionCountInput = document.getElementById("question-count");
 const targetPercentInput = document.getElementById("target-percent");
+const rewardMinutesInput = document.getElementById("reward-minutes");
 const quizForm = document.getElementById("quiz-form");
 const roundLabel = document.getElementById("round-label");
 const correctCount = document.getElementById("correct-count");
@@ -68,10 +69,11 @@ const state = {
   round: 1,
   questionsPerRound: 20,
   rewardTarget: DEFAULT_REWARD_TARGET,
+  rewardMinutes: DEFAULT_REWARD_MINUTES,
   questions: [],
   isRoundActive: false,
   rewardTimer: null,
-  rewardSecondsLeft: REWARD_SECONDS,
+  rewardSecondsLeft: DEFAULT_REWARD_MINUTES * 60,
   settingsUnlocked: false,
   selectedTopic: "minecraft",
   videoCatalog: {
@@ -103,7 +105,9 @@ function loadSettings() {
     childNameInput.value = saved.childName || "";
     questionCountInput.value = saved.questionsPerRound || 20;
     targetPercentInput.value = saved.rewardTarget || DEFAULT_REWARD_TARGET;
+    rewardMinutesInput.value = saved.rewardMinutes || DEFAULT_REWARD_MINUTES;
     state.rewardTarget = Number(saved.rewardTarget) || DEFAULT_REWARD_TARGET;
+    state.rewardMinutes = Number(saved.rewardMinutes) || DEFAULT_REWARD_MINUTES;
     targetRate.textContent = `${state.rewardTarget}%`;
     state.round = saved.round || 1;
     roundLabel.textContent = String(state.round);
@@ -150,12 +154,15 @@ function writeLocalHistory(entries) {
 
 function saveSettings() {
   state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
+  state.rewardMinutes = Math.min(15, Math.max(1, Number(rewardMinutesInput.value) || DEFAULT_REWARD_MINUTES));
   targetPercentInput.value = String(state.rewardTarget);
+  rewardMinutesInput.value = String(state.rewardMinutes);
   targetRate.textContent = `${state.rewardTarget}%`;
   const payload = {
     childName: childNameInput.value.trim(),
     questionsPerRound: Number(questionCountInput.value) || 20,
     rewardTarget: state.rewardTarget,
+    rewardMinutes: state.rewardMinutes,
     round: state.round,
     selectedTopic: state.selectedTopic,
     videoCatalog: { ...state.videoCatalog }
@@ -190,6 +197,7 @@ function renderHistory() {
       <div class="history-meta">
         <span>${entry.reward_unlocked ? "Belohnung frei" : "Noch gesperrt"}</span>
         <span>${entry.selected_topic || "-"}</span>
+        <span>${formatRewardDuration(entry.reward_minutes || state.rewardMinutes)}</span>
         <span>${formatHistoryDate(entry.created_at)}</span>
       </div>
     `;
@@ -300,7 +308,9 @@ function buildQuestion(usedKeys) {
 function createRound() {
   const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || 20));
   state.rewardTarget = Math.min(100, Math.max(50, Number(targetPercentInput.value) || DEFAULT_REWARD_TARGET));
+  state.rewardMinutes = Math.min(15, Math.max(1, Number(rewardMinutesInput.value) || DEFAULT_REWARD_MINUTES));
   targetPercentInput.value = String(state.rewardTarget);
+  rewardMinutesInput.value = String(state.rewardMinutes);
   targetRate.textContent = `${state.rewardTarget}%`;
   state.questionsPerRound = questionCount;
   const usedKeys = new Set();
@@ -337,6 +347,7 @@ function currentRoundPayload(correct, percent) {
     score_percent: percent,
     reward_unlocked: percent >= state.rewardTarget,
     reward_target: state.rewardTarget,
+    reward_minutes: state.rewardMinutes,
     selected_topic: getSelectedTopicLabel(),
     question_set: state.questions.map((question) => ({
       left: question.left,
@@ -462,7 +473,7 @@ function evaluateRound() {
 
   if (percent >= state.rewardTarget) {
     nextRoundBtn.hidden = true;
-    updateStatus(`Stark gemacht. ${correct} von ${state.questions.length} Aufgaben sind richtig. Das ${getSelectedTopicLabel()}-Video laeuft jetzt fuer 2 Minuten.`);
+    updateStatus(`Stark gemacht. ${correct} von ${state.questions.length} Aufgaben sind richtig. Das ${getSelectedTopicLabel()}-Video laeuft jetzt fuer ${formatRewardDuration(state.rewardMinutes)}.`);
     startReward();
     return;
   }
@@ -644,6 +655,10 @@ function getSelectedTopicLabel() {
   return TOPICS.find((topic) => topic.key === state.selectedTopic)?.label || "Video";
 }
 
+function formatRewardDuration(minutes) {
+  return minutes === 1 ? "1 Minute" : `${minutes} Minuten`;
+}
+
 function getTopicConfig(topicKey) {
   return TOPICS.find((topic) => topic.key === topicKey);
 }
@@ -702,6 +717,7 @@ function createSupabaseApi(cfg) {
     async listLearningRounds() {
       const query =
         "?select=id,created_at,child_name,round_number,questions_total,correct_total,score_percent,reward_unlocked,selected_topic" +
+        ",reward_minutes" +
         "&order=created_at.desc" +
         "&limit=20";
       const data = await request(base + query, { method: "GET" });
@@ -762,7 +778,7 @@ function startReward() {
   }
 
   clearInterval(state.rewardTimer);
-  state.rewardSecondsLeft = REWARD_SECONDS;
+  state.rewardSecondsLeft = state.rewardMinutes * 60;
   state.activeVideoSource = source;
   state.activeVideoUrl = videoUrl;
   state.activeFallbackIndex = 0;
@@ -770,7 +786,7 @@ function startReward() {
   state.pendingVideoId = source.mode === "video" ? source.videoId : "";
   videoShell.classList.add("unlocked");
   overlayMessage.textContent = "";
-  rewardText.textContent = `${getSelectedTopicLabel()} laeuft jetzt fuer 2 Minuten.`;
+  rewardText.textContent = `${getSelectedTopicLabel()} laeuft jetzt fuer ${formatRewardDuration(state.rewardMinutes)}.`;
   updateTimerText();
   playSelectedVideo();
 
@@ -791,7 +807,7 @@ function finishRewardWindow() {
   state.round += 1;
   roundLabel.textContent = String(state.round);
   saveSettings();
-  lockReward(`Die 2 Minuten sind vorbei. Jetzt muessen erst wieder ${state.questionsPerRound} Aufgaben geloest werden.`);
+  lockReward(`Die ${formatRewardDuration(state.rewardMinutes)} sind vorbei. Jetzt muessen erst wieder ${state.questionsPerRound} Aufgaben geloest werden.`);
   updateStatus(`Belohnungszeit beendet. Starte Runde ${state.round} mit ${state.questionsPerRound} neuen Aufgaben.`);
   nextRoundBtn.hidden = false;
 }
@@ -805,7 +821,7 @@ function updateTimerText() {
 function lockReward(message) {
   clearInterval(state.rewardTimer);
   state.rewardTimer = null;
-  state.rewardSecondsLeft = REWARD_SECONDS;
+  state.rewardSecondsLeft = state.rewardMinutes * 60;
   updateTimerText();
   pausePlayer();
   videoShell.classList.remove("unlocked");
@@ -905,7 +921,7 @@ parentPinInput.addEventListener("keydown", (event) => {
   }
 });
 
-[childNameInput, questionCountInput, targetPercentInput].forEach((element) => {
+[childNameInput, questionCountInput, targetPercentInput, rewardMinutesInput].forEach((element) => {
   element.addEventListener("change", saveSettings);
 });
 
@@ -917,6 +933,7 @@ loadSettings();
 setSettingsLock(false);
 renderTopicOptions();
 selectTopic(state.selectedTopic);
-lockReward("Nach einer erfolgreichen Runde startet hier das ausgewaehlte Video fuer 2 Minuten.");
+lockReward(`Nach einer erfolgreichen Runde startet hier das ausgewaehlte Video fuer ${formatRewardDuration(state.rewardMinutes)}.`);
+updateTimerText();
 void loadHistory();
 registerServiceWorker();

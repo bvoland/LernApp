@@ -1,6 +1,6 @@
 # Mathe Mission
 
-Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Matheaufgaben loesen und bekommen bei erreichter Zielquote fuer 2 Minuten eine Videobelohnung.
+Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Matheaufgaben loesen und bekommen bei erreichter Zielquote fuer die eingestellte Zeit eine Videobelohnung.
 
 ## Funktionen
 
@@ -8,7 +8,8 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 - Standardmaessig 20 Aufgaben pro Runde, anpassbar zwischen 5 und 40
 - Auswertung aller Antworten mit Anzeige der richtigen Ergebnisse
 - Themenauswahl fuer Minecraft, Robotik und Lego
-- Freischaltung des ausgewaehlten YouTube-Videos fuer 2 Minuten bei erreichter Zielquote
+- Freischaltung des ausgewaehlten YouTube-Videos fuer die eingestellte Zeit bei erreichter Zielquote
+- Elternmodus kann Zielquote und Videozeit anpassen
 - Danach erneute Sperre, bis wieder eine komplette neue Runde geloest wurde
 - Elternschutz: Einstellungen und Video-Links nur im Elternmodus aenderbar
 - Ergebnisverlauf mit lokalem Speicher und optionaler Supabase-Synchronisierung
@@ -35,6 +36,6 @@ Im Elternbereich kann fuer jedes Thema eine YouTube-URL oder Embed-URL eingetrag
 
 Normale YouTube-Links werden zwar umgewandelt, aber manche Videos verbieten Einbettung. In dem Fall muss ein anderes Video verwendet werden.
 
-Direkte eingebettete Suchergebnisse von YouTube werden nicht verwendet. Stattdessen wird pro Thema ein hinterlegtes Video abgespielt und nach 2 Minuten automatisch pausiert und wieder gesperrt.
+Direkte eingebettete Suchergebnisse von YouTube werden nicht verwendet. Stattdessen wird pro Thema ein hinterlegtes Video abgespielt und nach der eingestellten Zeit automatisch pausiert und wieder gesperrt.
 
 Wenn noch keine eigenen Links eingetragen wurden, nutzt die App automatisch passende Standardquellen fuer Minecraft, Robotik und Lego.

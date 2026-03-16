@@ -18,7 +18,7 @@
         <p class="eyebrow">PWA fuer GitHub Pages</p>
         <h1>Mathe Mission</h1>
         <p class="hero-copy">
-          20 Aufgaben loesen, die Zielquote erreichen und danach fuer 2 Minuten ein Video als Belohnung sehen.
+          20 Aufgaben loesen, die Zielquote erreichen und danach fuer die eingestellte Zeit ein Video als Belohnung sehen.
         </p>
       </div>
       <div class="hero-card">
@@ -62,6 +62,11 @@
           <label class="field">
             <span>Zielquote in Prozent</span>
             <input id="target-percent" type="number" min="50" max="100" value="95">
+          </label>
+
+          <label class="field">
+            <span>Videozeit in Minuten</span>
+            <input id="reward-minutes" type="number" min="1" max="15" value="2">
           </label>
 
           <div class="video-admin">
@@ -152,7 +157,7 @@
 
         <div id="video-shell" class="video-shell locked">
           <div id="video-overlay" class="video-overlay">
-            <p id="overlay-message">Nach einer erfolgreichen Runde startet hier das Video fuer 2 Minuten.</p>
+            <p id="overlay-message">Nach einer erfolgreichen Runde startet hier das Video fuer die eingestellte Zeit.</p>
           </div>
           <div id="reward-video" class="player-host" aria-label="Belohnungsvideo"></div>
         </div>

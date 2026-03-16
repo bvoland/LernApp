@@ -56,6 +56,7 @@ const statsAllCorrect = document.getElementById("stats-all-correct");
 const statsAllError = document.getElementById("stats-all-error");
 const gradeBadge = document.getElementById("grade-badge");
 const statsCopy = document.getElementById("stats-copy");
+const childrenOverview = document.getElementById("children-overview");
 const appVersionText = document.getElementById("app-version");
 const refreshAppBtn = document.getElementById("refresh-app-btn");
 const dataSourceText = document.getElementById("data-source");
@@ -259,6 +260,16 @@ function childRedemptions() {
   return state.redemptions.filter((entry) => (entry.child_name || DEFAULT_PROFILES[0].name) === state.selectedChild);
 }
 
+function availableMinutesForChild(childName) {
+  const earned = state.history
+    .filter((entry) => (entry.child_name || DEFAULT_PROFILES[0].name) === childName)
+    .reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
+  const redeemed = state.redemptions
+    .filter((entry) => (entry.child_name || DEFAULT_PROFILES[0].name) === childName)
+    .reduce((sum, entry) => sum + Number(entry.minutes_redeemed || 0), 0);
+  return Math.max(0, earned - redeemed);
+}
+
 function getAvailableMinutes() {
   const earned = childHistory().reduce((sum, entry) => sum + Number(entry.earned_minutes || 0), 0);
   const redeemed = childRedemptions().reduce((sum, entry) => sum + Number(entry.minutes_redeemed || 0), 0);
@@ -304,6 +315,22 @@ function updateMinuteSummary() {
   earnedToday.textContent = formatMinutes(todayMinutes);
   earnedTotal.textContent = formatMinutes(totalMinutes);
   timerPill.textContent = formatMinutes(available);
+}
+
+function renderChildrenOverview() {
+  if (!childrenOverview) return;
+  childrenOverview.innerHTML = "";
+
+  state.profiles.forEach((profile) => {
+    const item = document.createElement("article");
+    item.className = "analytics-card";
+    item.innerHTML = `
+      <h3>${profile.name}</h3>
+      <p>Klasse: <strong>${profile.currentGrade}. Klasse</strong></p>
+      <p>Verfuegbar: <strong>${formatMinutes(availableMinutesForChild(profile.name))}</strong></p>
+    `;
+    childrenOverview.append(item);
+  });
 }
 
 function renderHistory() {
@@ -354,6 +381,7 @@ function renderHistory() {
 
   updateMinuteSummary();
   updateAnalytics();
+  renderChildrenOverview();
 }
 
 function randomInt(min, max) {

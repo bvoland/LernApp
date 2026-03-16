@@ -14,6 +14,7 @@ Eine einfache Lernapp als PWA fuer GitHub Pages. Kinder koennen pro Runde Mathea
 - Elternschutz: Einstellungen und Video-Links nur im Elternmodus aenderbar
 - Ergebnisverlauf mit lokalem Speicher und optionaler Supabase-Synchronisierung
 - Automatische Standardquellen fuer YouTube-Inhalte zu Minecraft, Robotik und Lego
+- Notfall-Link zum direkten Oeffnen des aktuellen Themas auf YouTube
 - Installierbar als PWA und offline nutzbar
 
 ## GitHub Pages
@@ -39,3 +40,5 @@ Normale YouTube-Links werden zwar umgewandelt, aber manche Videos verbieten Einb
 Direkte eingebettete Suchergebnisse von YouTube werden nicht verwendet. Stattdessen wird pro Thema ein hinterlegtes Video abgespielt und nach der eingestellten Zeit automatisch pausiert und wieder gesperrt.
 
 Wenn noch keine eigenen Links eingetragen wurden, nutzt die App automatisch passende Standardquellen fuer Minecraft, Robotik und Lego.
+
+Falls YouTube die externe Einbettung eines Videos blockiert, probiert die App automatisch weitere Standardvideos und bietet zusaetzlich einen direkten Link zum Oeffnen auf YouTube an.

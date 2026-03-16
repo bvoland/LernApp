@@ -11,16 +11,22 @@ const TOPICS = [
     defaultUrls: [
       "https://www.youtube.com/watch?v=9aDWhUJdYDk",
       "https://www.youtube.com/watch?v=rn4rPCTrpLM",
-      "https://www.youtube.com/watch?v=8jI4Qfj7U6Q"
-    ]
+      "https://www.youtube.com/watch?v=8jI4Qfj7U6Q",
+      "https://www.youtube.com/watch?v=MmB9b5njVbA",
+      "https://www.youtube.com/watch?v=QdBZY2fkU-0"
+    ],
+    searchUrl: "https://www.youtube.com/results?search_query=Minecraft"
   },
   {
     key: "robotik",
     label: "Robotik",
     defaultUrls: [
       "https://www.youtube.com/watch?v=okxgZw_Hbik",
-      "https://www.youtube.com/watch?v=FZYvmZfb904"
-    ]
+      "https://www.youtube.com/watch?v=FZYvmZfb904",
+      "https://www.youtube.com/watch?v=s_cQ3vyV4fo",
+      "https://www.youtube.com/watch?v=szlrv4hQmG8"
+    ],
+    searchUrl: "https://www.youtube.com/results?search_query=Robotik+fuer+Kinder"
   },
   {
     key: "lego",
@@ -28,8 +34,11 @@ const TOPICS = [
     defaultUrls: [
       "https://www.youtube.com/watch?v=D7z8iXqjIkE",
       "https://www.youtube.com/watch?v=MHPhN8Z8Kug",
-      "https://www.youtube.com/watch?v=RK0USYA3Ouo"
-    ]
+      "https://www.youtube.com/watch?v=RK0USYA3Ouo",
+      "https://www.youtube.com/watch?v=4c44N6Q2Z4k",
+      "https://www.youtube.com/watch?v=lWOb9lY8QZ8"
+    ],
+    searchUrl: "https://www.youtube.com/results?search_query=Lego"
   }
 ];
 
@@ -56,6 +65,7 @@ const timerPill = document.getElementById("timer-pill");
 const videoShell = document.getElementById("video-shell");
 const overlayMessage = document.getElementById("overlay-message");
 const topicOptions = document.getElementById("topic-options");
+const youtubeOpenLink = document.getElementById("youtube-open-link");
 const historyList = document.getElementById("history-list");
 const storageState = document.getElementById("storage-state");
 
@@ -534,6 +544,7 @@ function renderTopicOptions() {
 function selectTopic(topicKey) {
   state.selectedTopic = topicKey;
   renderTopicOptions();
+  syncYouTubeOpenLink();
   saveSettings();
 
   if (!state.videoCatalog[topicKey]) {
@@ -663,18 +674,27 @@ function getTopicConfig(topicKey) {
   return TOPICS.find((topic) => topic.key === topicKey);
 }
 
+function syncYouTubeOpenLink() {
+  const topic = getTopicConfig(state.selectedTopic);
+  const configuredUrl = state.videoCatalog[state.selectedTopic];
+  youtubeOpenLink.href = configuredUrl || topic?.searchUrl || "https://www.youtube.com";
+}
+
 function getNextFallbackUrl(topicKey, currentUrl) {
   const topic = getTopicConfig(topicKey);
   if (!topic) {
     return "";
   }
 
-  const currentIndex = topic.defaultUrls.indexOf(currentUrl);
+  const configuredUrl = state.videoCatalog[topicKey];
+  const defaults = topic.defaultUrls.filter((url) => url !== configuredUrl);
+  const fallbackPool = configuredUrl ? [configuredUrl, ...defaults] : defaults;
+  const currentIndex = fallbackPool.indexOf(currentUrl);
   if (currentIndex === -1) {
-    return "";
+    return fallbackPool[0] || "";
   }
 
-  return topic.defaultUrls[currentIndex + 1] || "";
+  return fallbackPool[currentIndex + 1] || "";
 }
 
 function createLocalApi() {
@@ -770,6 +790,7 @@ function handleVideoInputChange(event) {
 function startReward() {
   const videoUrl = state.videoCatalog[state.selectedTopic];
   const source = parseVideoSource(videoUrl);
+  syncYouTubeOpenLink();
 
   if (!source) {
     lockReward(`Fuer ${getSelectedTopicLabel()} ist noch keine gueltige YouTube-URL eingetragen.`);
@@ -869,13 +890,14 @@ function handlePlayerError(event) {
       state.activeVideoId = source.mode === "video" ? source.videoId : "";
       state.pendingVideoId = source.mode === "video" ? source.videoId : "";
       rewardText.textContent = `${getSelectedTopicLabel()} laedt ein alternatives Video.`;
+      syncYouTubeOpenLink();
       playSelectedVideo();
       return;
     }
   }
 
   lockReward("Dieses Video darf nicht eingebettet werden oder ist gerade nicht verfuegbar.");
-  rewardText.textContent = "Bitte spaeter erneut versuchen oder im Elternmodus eine andere YouTube-URL setzen.";
+  rewardText.textContent = "Bitte auf YouTube oeffnen oder im Elternmodus eine andere YouTube-URL setzen.";
   updateStatus("Belohnung konnte nicht gestartet werden, weil YouTube das Video fuer externe Einbettung blockiert.");
   nextRoundBtn.hidden = false;
 }
@@ -934,6 +956,7 @@ setSettingsLock(false);
 renderTopicOptions();
 selectTopic(state.selectedTopic);
 lockReward(`Nach einer erfolgreichen Runde startet hier das ausgewaehlte Video fuer ${formatRewardDuration(state.rewardMinutes)}.`);
+syncYouTubeOpenLink();
 updateTimerText();
 void loadHistory();
 registerServiceWorker();

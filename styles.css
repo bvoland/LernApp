@@ -336,6 +336,15 @@ h1 {
   flex-wrap: wrap;
 }
 
+.reward-actions {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.reward-actions a {
+  text-decoration: none;
+}
+
 .reward-header {
   display: flex;
   justify-content: space-between;

@@ -2,6 +2,7 @@ const PARENT_PIN = "0922";
 const REWARD_TARGET = 95;
 const REWARD_SECONDS = 120;
 const STORAGE_KEY = "mathe-mission-state";
+const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const OPERATIONS = ["+", "-", "*", "/"];
 const TOPICS = [
   { key: "minecraft", label: "Minecraft", searchText: "Minecraft" },
@@ -29,6 +30,8 @@ const timerPill = document.getElementById("timer-pill");
 const videoShell = document.getElementById("video-shell");
 const overlayMessage = document.getElementById("overlay-message");
 const topicOptions = document.getElementById("topic-options");
+const historyList = document.getElementById("history-list");
+const storageState = document.getElementById("storage-state");
 
 const videoInputs = {
   minecraft: document.getElementById("video-minecraft"),
@@ -53,7 +56,10 @@ const state = {
   playerReady: false,
   pendingVideoId: "",
   activeVideoId: "",
-  player: null
+  player: null,
+  history: [],
+  api: null,
+  storageMode: "local"
 };
 
 const NUMBER_RANGES = {
@@ -84,6 +90,32 @@ function loadSettings() {
   });
 }
 
+function setStorageMode(mode) {
+  state.storageMode = mode;
+  if (mode === "cloud") {
+    storageState.textContent = "Supabase aktiv";
+    storageState.classList.add("unlocked");
+    return;
+  }
+
+  storageState.textContent = "Nur lokal";
+  storageState.classList.remove("unlocked");
+}
+
+function readLocalHistory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "[]");
+    return Array.isArray(saved) ? saved : [];
+  } catch (error) {
+    console.warn("Lokale Historie konnte nicht geladen werden.", error);
+    return [];
+  }
+}
+
+function writeLocalHistory(entries) {
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, 30)));
+}
+
 function saveSettings() {
   const payload = {
     childName: childNameInput.value.trim(),
@@ -93,6 +125,40 @@ function saveSettings() {
     videoCatalog: { ...state.videoCatalog }
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+
+function formatHistoryDate(isoString) {
+  const date = new Date(isoString);
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(date);
+}
+
+function renderHistory() {
+  historyList.innerHTML = "";
+
+  if (!state.history.length) {
+    historyList.innerHTML = '<p class="empty-history">Noch keine gespeicherten Runden.</p>';
+    return;
+  }
+
+  state.history.slice(0, 10).forEach((entry) => {
+    const item = document.createElement("article");
+    item.className = "history-item";
+    item.innerHTML = `
+      <div class="history-main">
+        <strong>${entry.child_name || "Kind"} - Runde ${entry.round_number}</strong>
+        <span>${entry.correct_total}/${entry.questions_total} richtig (${entry.score_percent}%)</span>
+      </div>
+      <div class="history-meta">
+        <span>${entry.reward_unlocked ? "Belohnung frei" : "Noch gesperrt"}</span>
+        <span>${entry.selected_topic || "-"}</span>
+        <span>${formatHistoryDate(entry.created_at)}</span>
+      </div>
+    `;
+    historyList.append(item);
+  });
 }
 
 function randomInt(min, max) {
@@ -223,6 +289,50 @@ function createRound() {
   saveSettings();
 }
 
+function currentRoundPayload(correct, percent) {
+  return {
+    child_name: childNameInput.value.trim() || null,
+    round_number: state.round,
+    questions_total: state.questions.length,
+    correct_total: correct,
+    score_percent: percent,
+    reward_unlocked: percent >= REWARD_TARGET,
+    selected_topic: getSelectedTopicLabel(),
+    question_set: state.questions.map((question) => ({
+      left: question.left,
+      right: question.right,
+      operation: question.operation,
+      answer: question.answer,
+      userAnswer: question.userAnswer,
+      isCorrect: question.isCorrect
+    })),
+    created_at: new Date().toISOString()
+  };
+}
+
+async function saveRoundResult(entry) {
+  const mergedHistory = [entry, ...state.history].slice(0, 30);
+  state.history = mergedHistory;
+  writeLocalHistory(mergedHistory);
+  renderHistory();
+
+  if (!state.api || state.storageMode !== "cloud") {
+    return;
+  }
+
+  try {
+    await state.api.createLearningRound(entry);
+    const latest = await state.api.listLearningRounds();
+    state.history = latest;
+    writeLocalHistory(latest);
+    renderHistory();
+    setStorageMode("cloud");
+  } catch (error) {
+    console.warn("Supabase-Speicherung fehlgeschlagen, lokaler Fallback bleibt aktiv.", error);
+    setStorageMode("local");
+  }
+}
+
 function getGreeting() {
   const name = childNameInput.value.trim();
   return name ? `${name},` : "Los geht's,";
@@ -302,6 +412,7 @@ function evaluateRound() {
   });
 
   const percent = Math.round((correct / state.questions.length) * 100);
+  void saveRoundResult(currentRoundPayload(correct, percent));
   correctCount.textContent = String(correct);
   scoreRate.textContent = `${percent}%`;
   state.isRoundActive = false;
@@ -464,6 +575,88 @@ function getSelectedTopicLabel() {
   return TOPICS.find((topic) => topic.key === state.selectedTopic)?.label || "Video";
 }
 
+function createLocalApi() {
+  return {
+    async listLearningRounds() {
+      return readLocalHistory();
+    },
+    async createLearningRound(entry) {
+      const current = readLocalHistory();
+      writeLocalHistory([entry, ...current]);
+    }
+  };
+}
+
+function createSupabaseApi(cfg) {
+  const root = cfg.supabaseUrl.replace(/\/+$/, "");
+  const base = root + "/rest/v1/learning_rounds";
+
+  async function request(url, options) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        apikey: cfg.supabaseAnonKey,
+        Authorization: "Bearer " + cfg.supabaseAnonKey,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+        ...(options && options.headers ? options.headers : {})
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error("HTTP " + response.status + ": " + text);
+    }
+
+    return response.status === 204 ? null : response.json();
+  }
+
+  return {
+    async listLearningRounds() {
+      const query =
+        "?select=id,created_at,child_name,round_number,questions_total,correct_total,score_percent,reward_unlocked,selected_topic" +
+        "&order=created_at.desc" +
+        "&limit=20";
+      const data = await request(base + query, { method: "GET" });
+      return Array.isArray(data) ? data : [];
+    },
+    async createLearningRound(entry) {
+      await request(base, {
+        method: "POST",
+        body: JSON.stringify([entry])
+      });
+    }
+  };
+}
+
+async function loadHistory() {
+  state.history = readLocalHistory();
+  renderHistory();
+
+  const cfg = window.APP_CONFIG || {};
+  const hasSupabase = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey);
+  state.api = hasSupabase ? createSupabaseApi(cfg) : createLocalApi();
+
+  if (!hasSupabase) {
+    setStorageMode("local");
+    return;
+  }
+
+  try {
+    const rows = await state.api.listLearningRounds();
+    if (rows.length) {
+      state.history = rows;
+      writeLocalHistory(rows);
+      renderHistory();
+    }
+    setStorageMode("cloud");
+  } catch (error) {
+    console.warn("Supabase noch nicht verfuegbar, lokaler Speicher bleibt aktiv.", error);
+    state.api = createLocalApi();
+    setStorageMode("local");
+  }
+}
+
 function handleVideoInputChange(event) {
   const topicKey = event.target.id.replace("video-", "");
   state.videoCatalog[topicKey] = event.target.value.trim();
@@ -600,4 +793,5 @@ setSettingsLock(false);
 renderTopicOptions();
 selectTopic(state.selectedTopic);
 lockReward("Nach einer erfolgreichen Runde startet hier das ausgewaehlte Video fuer 2 Minuten.");
+void loadHistory();
 registerServiceWorker();

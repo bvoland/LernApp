@@ -1,10 +1,12 @@
-const CACHE_NAME = "mathe-mission-v1";
+const CACHE_NAME = "mathe-mission-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./config.js",
   "./manifest.webmanifest",
+  "./supabase.sql",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
 ];

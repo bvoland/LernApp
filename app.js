@@ -431,7 +431,12 @@ function buildQuestionForGrade(grade, usedKeys) {
     } else {
       const rangeKeyRoll = Math.random();
       const rangeKey = rangeKeyRoll < 0.4 ? "small" : rangeKeyRoll < 0.8 ? "medium" : "large";
-      const operation = ["+", "-", "*", "/"][randomInt(0, 3)];
+      const operationRoll = Math.random();
+      const operation =
+        operationRoll < 0.2 ? "+" :
+        operationRoll < 0.4 ? "-" :
+        operationRoll < 0.7 ? "*" :
+        "/";
       if (operation === "+") question = buildAdditionQuestion(rangeKey);
       else if (operation === "-") question = buildSubtractionQuestion(rangeKey);
       else if (operation === "*") question = buildMultiplicationQuestion(rangeKey);

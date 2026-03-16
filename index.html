@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1f6feb">
+  <meta name="description" content="Mathe-Lernapp als PWA mit Belohnungssystem fuer Kinder der 3. Klasse.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>Mathe Mission</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">PWA fuer GitHub Pages</p>
+        <h1>Mathe Mission</h1>
+        <p class="hero-copy">
+          20 Aufgaben loesen, 95 Prozent richtig erreichen und danach fuer 2 Minuten ein Video als Belohnung sehen.
+        </p>
+      </div>
+      <div class="hero-card">
+        <div class="badge">3. Klasse</div>
+        <ul class="skills">
+          <li>Addition</li>
+          <li>Subtraktion</li>
+          <li>Multiplikation</li>
+          <li>Division</li>
+        </ul>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel settings-panel">
+        <h2>Einstellungen</h2>
+        <label class="field">
+          <span>Name</span>
+          <input id="child-name" type="text" maxlength="30" placeholder="z. B. Leo">
+        </label>
+
+        <label class="field">
+          <span>Aufgaben pro Runde</span>
+          <input id="question-count" type="number" min="5" max="40" value="20">
+        </label>
+
+        <label class="field">
+          <span>YouTube Embed URL</span>
+          <input id="video-url" type="url" placeholder="https://www.youtube.com/embed/...">
+        </label>
+
+        <p class="hint">
+          Tipp: Am besten eine Embed-URL wie <code>https://www.youtube.com/embed/VIDEO_ID</code> verwenden. Manche Videos erlauben kein Einbetten.
+        </p>
+
+        <button id="start-btn" class="primary-btn">Neue Runde starten</button>
+      </section>
+
+      <section class="panel progress-panel">
+        <div class="stats-grid">
+          <article class="stat">
+            <span class="stat-label">Runde</span>
+            <strong id="round-label">1</strong>
+          </article>
+          <article class="stat">
+            <span class="stat-label">Richtig</span>
+            <strong id="correct-count">0</strong>
+          </article>
+          <article class="stat">
+            <span class="stat-label">Quote</span>
+            <strong id="score-rate">0%</strong>
+          </article>
+          <article class="stat">
+            <span class="stat-label">Ziel</span>
+            <strong>95%</strong>
+          </article>
+        </div>
+
+        <div id="status-banner" class="status-banner">
+          Runde vorbereiten und dann mit den Aufgaben loslegen.
+        </div>
+
+        <form id="quiz-form" class="quiz-form"></form>
+        <div class="actions">
+          <button id="submit-btn" class="primary-btn" disabled>Antworten pruefen</button>
+          <button id="next-round-btn" class="secondary-btn" hidden>Naechste Runde</button>
+        </div>
+      </section>
+
+      <section class="panel reward-panel">
+        <div class="reward-header">
+          <div>
+            <h2>Belohnung</h2>
+            <p id="reward-text">Video ist gesperrt, bis mindestens 95 Prozent erreicht sind.</p>
+          </div>
+          <div id="timer-pill" class="timer-pill">02:00</div>
+        </div>
+
+        <div id="video-shell" class="video-shell locked">
+          <div id="video-overlay" class="video-overlay">
+            <p id="overlay-message">Nach einer erfolgreichen Runde startet hier das Video fuer 2 Minuten.</p>
+          </div>
+          <iframe
+            id="reward-video"
+            title="Belohnungsvideo"
+            src=""
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

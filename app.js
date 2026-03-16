@@ -58,6 +58,7 @@ const gradeBadge = document.getElementById("grade-badge");
 const statsCopy = document.getElementById("stats-copy");
 const appVersionText = document.getElementById("app-version");
 const refreshAppBtn = document.getElementById("refresh-app-btn");
+const dataSourceText = document.getElementById("data-source");
 
 const state = {
   round: 1,
@@ -203,10 +204,16 @@ function setStorageMode(mode) {
   if (mode === "cloud") {
     storageState.textContent = "Supabase aktiv";
     storageState.classList.add("unlocked");
+    if (dataSourceText) {
+      dataSourceText.textContent = "Datenquelle: Supabase, sichtbar auf allen Geraeten";
+    }
     return;
   }
   storageState.textContent = "Nur lokal";
   storageState.classList.remove("unlocked");
+  if (dataSourceText) {
+    dataSourceText.textContent = "Datenquelle: nur dieses Geraet";
+  }
 }
 
 function formatHistoryDate(isoString) {

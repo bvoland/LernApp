@@ -348,6 +348,46 @@ h1 {
   font-size: 1rem;
 }
 
+.written-sum,
+.money-task {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(31, 111, 235, 0.06);
+  border: 1px solid rgba(31, 111, 235, 0.08);
+}
+
+.written-sum {
+  display: grid;
+  gap: 6px;
+  max-width: 180px;
+  margin-left: auto;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.written-kind {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.written-line {
+  text-align: right;
+  font-weight: 700;
+}
+
+.written-result-line {
+  min-height: 10px;
+  border-top: 2px solid rgba(22, 50, 79, 0.35);
+}
+
+.money-task {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
 .actions {
   display: flex;
   gap: 12px;

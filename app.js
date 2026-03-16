@@ -1,6 +1,6 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
-const APP_VERSION = "v2026.03.16-3";
+const APP_VERSION = "v2026.03.16-4";
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
@@ -236,6 +236,32 @@ function calculateEarnedMinutes(questionCount) {
   return Math.round((questionCount / 10) * 10) / 10;
 }
 
+function formatMoney(cents) {
+  const euros = Math.floor(cents / 100);
+  const remainder = String(cents % 100).padStart(2, "0");
+  return `${euros},${remainder} Euro`;
+}
+
+function parseMoneyInput(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s/g, "")
+    .replace(/euro|eur|\u20ac/g, "")
+    .replace(".", ",");
+  if (!normalized) return NaN;
+  if (!/^\d+(,\d{1,2})?$/.test(normalized)) return NaN;
+  const [euros, cents = "0"] = normalized.split(",");
+  return Number(euros) * 100 + Number(cents.padEnd(2, "0"));
+}
+
+function formatAnswer(question) {
+  if (question.kind === "money_add") {
+    return formatMoney(question.answer);
+  }
+  return String(question.answer);
+}
+
 function updatePotentialMinutes() {
   const questionCount = Math.min(40, Math.max(5, Number(questionCountInput.value) || state.questionsPerRound || 20));
   potentialMinutes.textContent = formatMinutes(calculateEarnedMinutes(questionCount));
@@ -389,6 +415,39 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function buildWrittenAdditionQuestion() {
+  const left = randomInt(110, 898);
+  const right = randomInt(101, Math.min(899, 999 - left));
+  const hasCarry =
+    (left % 10) + (right % 10) >= 10 ||
+    (Math.floor(left / 10) % 10) + (Math.floor(right / 10) % 10) >= 10;
+
+  if (!hasCarry) {
+    return buildWrittenAdditionQuestion();
+  }
+
+  return {
+    kind: "written_add",
+    left,
+    right,
+    operation: "+",
+    answer: left + right
+  };
+}
+
+function buildMoneyAdditionQuestion(maxCents) {
+  const safeMax = Math.max(200, maxCents);
+  const left = randomInt(100, Math.max(150, Math.floor(safeMax * 0.7)));
+  const right = randomInt(50, Math.max(100, safeMax - left));
+  return {
+    kind: "money_add",
+    left,
+    right,
+    operation: "+",
+    answer: left + right
+  };
+}
+
 function buildQuestionForGrade(grade, usedKeys) {
   let attempts = 0;
   while (attempts < 200) {
@@ -410,8 +469,14 @@ function buildQuestionForGrade(grade, usedKeys) {
         question = { left, right, operation: "-", answer: left - right };
       }
     } else if (grade === 2) {
-      const ops = ["+", "-", "*", "/"];
-      const operation = ops[randomInt(0, ops.length - 1)];
+      const roll = Math.random();
+      const operation =
+        roll < 0.25 ? "+" :
+        roll < 0.5 ? "-" :
+        roll < 0.7 ? "*" :
+        roll < 0.9 ? "/" :
+        roll < 0.95 ? "written_add" :
+        "money_add";
       if (operation === "+") {
         const left = randomInt(0, 80);
         const right = randomInt(0, 100 - left);
@@ -424,27 +489,35 @@ function buildQuestionForGrade(grade, usedKeys) {
         const left = randomInt(1, 10);
         const right = randomInt(1, 10);
         question = { left, right, operation, answer: left * right };
-      } else {
+      } else if (operation === "/") {
         const right = randomInt(1, 10);
         const answer = randomInt(1, 10);
         question = { left: right * answer, right, operation, answer };
+      } else if (operation === "written_add") {
+        question = buildWrittenAdditionQuestion();
+      } else {
+        question = buildMoneyAdditionQuestion(2000);
       }
     } else {
       const rangeKeyRoll = Math.random();
       const rangeKey = rangeKeyRoll < 0.4 ? "small" : rangeKeyRoll < 0.8 ? "medium" : "large";
       const operationRoll = Math.random();
       const operation =
-        operationRoll < 0.2 ? "+" :
-        operationRoll < 0.4 ? "-" :
+        operationRoll < 0.1 ? "+" :
+        operationRoll < 0.2 ? "-" :
+        operationRoll < 0.3 ? "written_add" :
+        operationRoll < 0.4 ? "money_add" :
         operationRoll < 0.7 ? "*" :
         "/";
       if (operation === "+") question = buildAdditionQuestion(rangeKey);
       else if (operation === "-") question = buildSubtractionQuestion(rangeKey);
       else if (operation === "*") question = buildMultiplicationQuestion(rangeKey);
-      else question = buildDivisionQuestion(rangeKey);
+      else if (operation === "/") question = buildDivisionQuestion(rangeKey);
+      else if (operation === "written_add") question = buildWrittenAdditionQuestion();
+      else question = buildMoneyAdditionQuestion(5000);
     }
 
-    const key = `${question.operation}:${question.left}:${question.right}`;
+    const key = `${question.kind || question.operation}:${question.left}:${question.right}`;
     if (!usedKeys.has(key)) {
       usedKeys.add(key);
       return question;
@@ -513,6 +586,41 @@ function getOperationSymbol(operation) {
   return operation;
 }
 
+function createQuestionLabel(question) {
+  if (question.kind === "money_add") {
+    return `${question.id}. ${formatMoney(question.left)} + ${formatMoney(question.right)} =`;
+  }
+
+  if (question.kind === "written_add") {
+    return `${question.id}. Schriftliche Addition`;
+  }
+
+  return `${question.id}. ${question.left} ${getOperationSymbol(question.operation)} ${question.right} =`;
+}
+
+function createQuestionVisual(question) {
+  if (question.kind === "written_add") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "written-sum";
+    wrapper.innerHTML = `
+      <div class="written-kind">Schriftliche Addition</div>
+      <div class="written-line">${question.left}</div>
+      <div class="written-line">+ ${question.right}</div>
+      <div class="written-result-line"></div>
+    `;
+    return wrapper;
+  }
+
+  if (question.kind === "money_add") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "money-task";
+    wrapper.textContent = `${formatMoney(question.left)} + ${formatMoney(question.right)} =`;
+    return wrapper;
+  }
+
+  return null;
+}
+
 function getGreeting() {
   return `${state.selectedChild},`;
 }
@@ -527,19 +635,23 @@ function renderQuestions() {
     top.className = "question-top";
     const title = document.createElement("span");
     title.className = "question-label";
-    title.textContent = `${question.id}. ${question.left} ${getOperationSymbol(question.operation)} ${question.right} =`;
+    title.textContent = createQuestionLabel(question);
     const feedback = document.createElement("span");
     feedback.className = "question-feedback";
     feedback.textContent = "Noch offen";
     const input = document.createElement("input");
-    input.type = "number";
+    input.type = question.kind === "money_add" ? "text" : "number";
     input.className = "question-input";
-    input.inputMode = "numeric";
-    input.placeholder = "Antwort";
+    input.inputMode = question.kind === "money_add" ? "decimal" : "numeric";
+    input.placeholder = question.kind === "money_add" ? "z. B. 3,50" : "Antwort";
     input.dataset.id = String(question.id);
     input.addEventListener("input", handleAnswerInput);
     top.append(title, feedback);
     card.append(top, input);
+    const visual = createQuestionVisual(question);
+    if (visual) {
+      card.append(visual);
+    }
     quizForm.append(card);
   });
 }
@@ -589,7 +701,7 @@ function updateQuestionFeedback() {
       feedback.textContent = "Richtig";
     } else {
       card.classList.add("wrong");
-      feedback.textContent = `Richtige Antwort: ${question.answer}`;
+      feedback.textContent = `Richtige Antwort: ${formatAnswer(question)}`;
     }
   });
 }
@@ -606,6 +718,7 @@ function currentRoundPayload(correct, percent, earnedMinutes) {
     reward_target: state.rewardTarget,
     earned_minutes: earnedMinutes,
     question_set: state.questions.map((question) => ({
+      kind: question.kind || "standard",
       left: question.left,
       right: question.right,
       operation: question.operation,
@@ -661,8 +774,11 @@ function evaluateRound() {
   if (!state.isRoundActive) return;
   let correct = 0;
   state.questions.forEach((question) => {
-    const numericAnswer = Number(question.userAnswer);
-    question.isCorrect = question.userAnswer !== "" && numericAnswer === question.answer;
+    const parsedAnswer =
+      question.kind === "money_add"
+        ? parseMoneyInput(question.userAnswer)
+        : Number(question.userAnswer);
+    question.isCorrect = question.userAnswer !== "" && parsedAnswer === question.answer;
     if (question.isCorrect) correct += 1;
   });
 

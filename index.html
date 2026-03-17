@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1f6feb">
-  <meta name="description" content="Mathe-Lernapp mit Minutenkonto fuer Kinder der 1. bis 3. Klasse.">
+  <meta name="description" content="Mathe-Lernapp mit Minutenkonto für Kinder der 1. bis 3. Klasse.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -16,7 +16,7 @@
       <div>
         <h1>Mathe Mission</h1>
         <p class="hero-copy">
-          Aufgaben loesen, die Zielquote erreichen und dabei Minuten fuer spaetere Medienzeit ansparen.
+          Aufgaben lösen, die Zielquote erreichen und dabei Minuten für spätere Medienzeit ansparen.
         </p>
       </div>
       <div class="hero-card">
@@ -47,7 +47,7 @@
         <div class="section-head">
           <div>
             <h2>Einstellungen</h2>
-            <p class="section-copy">Aenderungen sind nur mit Eltern-PIN moeglich.</p>
+            <p class="section-copy">Änderungen sind nur mit Eltern-PIN möglich.</p>
           </div>
           <span id="settings-state" class="lock-chip">Gesperrt</span>
         </div>
@@ -56,14 +56,14 @@
           <input id="parent-pin" type="password" inputmode="numeric" maxlength="4" placeholder="Eltern-PIN">
           <button id="unlock-btn" class="secondary-btn" type="button">Freischalten</button>
         </div>
-        <p id="pin-feedback" class="hint">Nur im Elternmodus lassen sich Einstellungen aendern.</p>
+        <p id="pin-feedback" class="hint">Nur im Elternmodus lassen sich Einstellungen ändern.</p>
 
         <fieldset id="settings-fields" disabled>
           <label class="field">
             <span>Neues Kind anlegen</span>
             <div class="inline-row">
               <input id="child-name" type="text" maxlength="30" placeholder="Neuer Name">
-              <button id="add-child-btn" class="secondary-btn" type="button">Hinzufuegen</button>
+              <button id="add-child-btn" class="secondary-btn" type="button">Hinzufügen</button>
             </div>
           </label>
 
@@ -131,8 +131,8 @@
 
         <form id="quiz-form" class="quiz-form"></form>
         <div class="actions">
-          <button id="submit-btn" class="primary-btn" disabled>Antworten pruefen</button>
-          <button id="next-round-btn" class="secondary-btn" hidden>Naechste Runde</button>
+          <button id="submit-btn" class="primary-btn" disabled>Antworten prüfen</button>
+          <button id="next-round-btn" class="secondary-btn" hidden>Nächste Runde</button>
         </div>
       </section>
 
@@ -160,7 +160,7 @@
 
         <div class="stats-grid reward-stats">
           <article class="stat">
-            <span class="stat-label">Verfuegbar</span>
+            <span class="stat-label">Verfügbar</span>
             <strong id="available-minutes">0,0 Min</strong>
           </article>
           <article class="stat">
@@ -172,13 +172,13 @@
             <strong id="earned-total">0,0 Min</strong>
           </article>
           <article class="stat">
-            <span class="stat-label">Naechste Runde</span>
+            <span class="stat-label">Nächste Runde</span>
             <strong id="potential-minutes">2,0 Min</strong>
           </article>
         </div>
 
         <div class="actions reward-actions">
-          <button id="redeem-btn" class="secondary-btn" type="button">Minuten einloesen</button>
+          <button id="redeem-btn" class="secondary-btn" type="button">Minuten einlösen</button>
         </div>
 
         <div class="minutes-board">
@@ -190,7 +190,7 @@
         <div class="section-head">
           <div>
             <h2>Statistik</h2>
-            <p id="stats-copy" class="section-copy">Lernfortschritt fuer heute, diesen Monat und insgesamt.</p>
+            <p id="stats-copy" class="section-copy">Lernfortschritt für heute, diesen Monat und insgesamt.</p>
           </div>
         </div>
 
@@ -199,19 +199,19 @@
             <h3>Heute</h3>
             <p>Aufgaben: <strong id="stats-day-total">0</strong></p>
             <p>Richtig: <strong id="stats-day-correct">0</strong></p>
-            <p>Fehlerquote: <strong id="stats-day-error">0%</strong></p>
+            <p>Fehlerquote: <strong id="stats-day-error">0 %</strong></p>
           </article>
           <article class="analytics-card">
             <h3>Monat</h3>
             <p>Aufgaben: <strong id="stats-month-total">0</strong></p>
             <p>Richtig: <strong id="stats-month-correct">0</strong></p>
-            <p>Fehlerquote: <strong id="stats-month-error">0%</strong></p>
+            <p>Fehlerquote: <strong id="stats-month-error">0 %</strong></p>
           </article>
           <article class="analytics-card">
             <h3>Gesamt</h3>
             <p>Aufgaben: <strong id="stats-all-total">0</strong></p>
             <p>Richtig: <strong id="stats-all-correct">0</strong></p>
-            <p>Fehlerquote: <strong id="stats-all-error">0%</strong></p>
+            <p>Fehlerquote: <strong id="stats-all-error">0 %</strong></p>
           </article>
         </div>
       </section>
@@ -219,8 +219,8 @@
       <section class="panel overview-panel">
         <div class="section-head">
           <div>
-            <h2>Gesamtuebersicht</h2>
-            <p class="section-copy">Verfuegbare Minuten aller Kinder auf einen Blick.</p>
+            <h2>Gesamtübersicht</h2>
+            <p class="section-copy">Verfügbare Minuten aller Kinder auf einen Blick.</p>
           </div>
         </div>
         <div id="children-overview" class="analytics-grid">

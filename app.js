@@ -1,6 +1,6 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
-const APP_VERSION = "v2026.03.17-2";
+const APP_VERSION = "v2026.03.17-3";
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
@@ -96,7 +96,7 @@ function readStorageArray(key) {
     const saved = JSON.parse(localStorage.getItem(key) || "[]");
     return Array.isArray(saved) ? saved : [];
   } catch (error) {
-    console.warn(`Lokaler Speicher fuer ${key} konnte nicht geladen werden.`, error);
+    console.warn(`Lokaler Speicher für ${key} konnte nicht geladen werden.`, error);
     return [];
   }
 }
@@ -142,7 +142,7 @@ function renderChildOptions() {
   renderGradeOptions();
   renderGrade1Settings();
   gradeBadge.textContent = `${currentGrade()}. Klasse`;
-  statsCopy.textContent = `Lernfortschritt von ${state.selectedChild} fuer heute, diesen Monat und insgesamt.`;
+  statsCopy.textContent = `Lernfortschritt von ${state.selectedChild} für heute, diesen Monat und insgesamt.`;
 }
 
 function renderGradeOptions() {
@@ -206,14 +206,14 @@ function setStorageMode(mode) {
     storageState.textContent = "Supabase aktiv";
     storageState.classList.add("unlocked");
     if (dataSourceText) {
-      dataSourceText.textContent = "Datenquelle: Supabase, sichtbar auf allen Geraeten";
+      dataSourceText.textContent = "Datenquelle: Supabase, sichtbar auf allen Geräten";
     }
     return;
   }
   storageState.textContent = "Nur lokal";
   storageState.classList.remove("unlocked");
   if (dataSourceText) {
-    dataSourceText.textContent = "Datenquelle: nur dieses Geraet";
+    dataSourceText.textContent = "Datenquelle: nur dieses Gerät";
   }
 }
 
@@ -369,7 +369,7 @@ function renderChildrenOverview() {
     item.innerHTML = `
       <h3>${profile.name}</h3>
       <p>Klasse: <strong>${profile.currentGrade}. Klasse</strong></p>
-      <p>Verfuegbar: <strong>${formatMinutes(availableMinutesForChild(profile.name))}</strong></p>
+      <p>Verfügbar: <strong>${formatMinutes(availableMinutesForChild(profile.name))}</strong></p>
     `;
     childrenOverview.append(item);
   });
@@ -383,7 +383,7 @@ function renderHistory() {
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   if (!combined.length) {
-    historyList.innerHTML = `<p class="empty-history">Noch keine gespeicherten Runden fuer ${state.selectedChild}.</p>`;
+    historyList.innerHTML = `<p class="empty-history">Noch keine gespeicherten Runden für ${state.selectedChild}.</p>`;
     updateMinuteSummary();
     updateAnalytics();
     renderChildrenOverview();
@@ -397,7 +397,7 @@ function renderHistory() {
     if (entry.type === "redeem") {
       item.innerHTML = `
         <div class="history-main">
-          <strong>${entry.child_name} - Minuten eingeloest</strong>
+          <strong>${entry.child_name} - Minuten eingelöst</strong>
           <span>${formatMinutes(Number(entry.minutes_redeemed || 0))}</span>
         </div>
         <div class="history-meta">
@@ -540,7 +540,7 @@ function buildQuestionForGrade(grade, usedKeys) {
     }
     attempts += 1;
   }
-  throw new Error("Konnte keine eindeutige Aufgabe fuer diese Runde erzeugen.");
+  throw new Error("Konnte keine eindeutige Aufgabe für diese Runde erzeugen.");
 }
 
 const NUMBER_RANGES = {
@@ -637,7 +637,7 @@ function createQuestionVisual(question) {
       digitInput.className = "written-digit-input";
       digitInput.dataset.digitIndex = String(index);
       digitInput.dataset.id = String(question.id);
-      digitInput.setAttribute("aria-label", `Ziffer ${index + 1} fuer Aufgabe ${question.id}`);
+      digitInput.setAttribute("aria-label", `Ziffer ${index + 1} für Aufgabe ${question.id}`);
       digitInput.addEventListener("input", handleAnswerInput);
       digitInput.addEventListener("keydown", handleWrittenDigitKeydown);
       answerRow.append(digitInput);
@@ -745,7 +745,7 @@ function createRound() {
     }));
   } catch (error) {
     console.warn("Runde konnte nicht erzeugt werden.", error);
-    updateStatus("Diese Runde konnte gerade nicht vorbereitet werden. Bitte noch einmal auf 'Neue Runde starten' tippen.");
+    updateStatus("Diese Runde konnte gerade nicht vorbereitet werden. Bitte noch einmal auf „Neue Runde starten“ tippen.");
     return;
   }
 
@@ -756,7 +756,7 @@ function createRound() {
   submitBtn.disabled = false;
   nextRoundBtn.hidden = true;
   speakRoundIntro();
-  updateStatus(`${getGreeting()} loese jetzt ${state.questionsPerRound} Aufgaben fuer die ${grade}. Klasse. Bei mindestens ${state.rewardTarget}% bekommst du ${formatMinutes(calculateEarnedMinutes(state.questionsPerRound))} gutgeschrieben.`);
+  updateStatus(`${getGreeting()} löse jetzt ${state.questionsPerRound} Aufgaben für die ${grade}. Klasse. Bei mindestens ${state.rewardTarget} % bekommst du ${formatMinutes(calculateEarnedMinutes(state.questionsPerRound))} gutgeschrieben.`);
 }
 
 function updateQuestionFeedback() {
@@ -834,7 +834,7 @@ async function saveRedemption(entry) {
     renderHistory();
     setStorageMode("cloud");
   } catch (error) {
-    console.warn("Supabase-Speicherung der Einloesung fehlgeschlagen.", error);
+    console.warn("Supabase-Speicherung der Einlösung fehlgeschlagen.", error);
     setStorageMode("local");
   }
 }
@@ -870,16 +870,16 @@ function evaluateRound() {
   if (earnedMinutes > 0) {
     if (bonusMinutes > 0) {
       rewardText.textContent = `${state.selectedChild} hat gerade ${formatMinutes(earnedMinutes)} gutgeschrieben bekommen.`;
-      overlayMessage.textContent = "Bonus geschafft: Heute zum 10. Mal 100% erreicht. Es gibt 2,0 Minuten extra.";
+      overlayMessage.textContent = "Bonus geschafft: Heute zum 10. Mal 100 % erreicht. Es gibt 2,0 Minuten extra.";
       updateStatus(`Perfekt. ${correct} von ${state.questions.length} richtig. ${formatMinutes(baseMinutes)} plus 2,0 Bonusminuten wurden ${state.selectedChild} gutgeschrieben.`);
     } else {
       rewardText.textContent = `${state.selectedChild} hat gerade ${formatMinutes(earnedMinutes)} gutgeschrieben bekommen.`;
-      overlayMessage.textContent = "Die Minuten bleiben angespart, bis ihr sie mit Elternfreigabe einloest.";
+      overlayMessage.textContent = "Die Minuten bleiben angespart, bis ihr sie mit Elternfreigabe einlöst.";
       updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden ${state.selectedChild} gutgeschrieben.`);
     }
   } else {
     rewardText.textContent = "Diese Runde war noch unter der Zielquote.";
-    overlayMessage.textContent = `Es wurden keine Minuten gutgeschrieben. Noch einmal versuchen und mindestens ${state.rewardTarget}% erreichen.`;
+    overlayMessage.textContent = `Es wurden keine Minuten gutgeschrieben. Noch einmal versuchen und mindestens ${state.rewardTarget} % erreichen.`;
     updateStatus(`Diese Runde reicht noch nicht. ${correct} von ${state.questions.length} richtig. Ab ${state.rewardTarget}% gibt es Minuten.`);
   }
 
@@ -928,12 +928,12 @@ function speakRoundIntro() {
 async function redeemMinutes() {
   const available = getAvailableMinutes();
   if (available <= 0) {
-    updateStatus(`Fuer ${state.selectedChild} sind aktuell keine Minuten zum Einloesen vorhanden.`);
+    updateStatus(`Für ${state.selectedChild} sind aktuell keine Minuten zum Einlösen vorhanden.`);
     return;
   }
-  const enteredPin = window.prompt(`Eltern-PIN zum Einloesen fuer ${state.selectedChild} eingeben:`);
+  const enteredPin = window.prompt(`Eltern-PIN zum Einlösen für ${state.selectedChild} eingeben:`);
   if (enteredPin !== PARENT_PIN) {
-    updateStatus("Einloesen abgebrochen: Eltern-PIN war nicht korrekt.");
+    updateStatus("Einlösen abgebrochen: Eltern-PIN war nicht korrekt.");
     return;
   }
   const entry = {
@@ -942,9 +942,9 @@ async function redeemMinutes() {
     created_at: new Date().toISOString()
   };
   await saveRedemption(entry);
-  rewardText.textContent = `${formatMinutes(available)} wurden fuer ${state.selectedChild} eingeloest.`;
-  overlayMessage.textContent = "Die Lernstatistik bleibt erhalten. Nur das verfuegbare Minutenkonto dieses Kindes wurde zurueckgesetzt.";
-  updateStatus(`Einloesung bestaetigt. ${formatMinutes(available)} wurden vom verfuegbaren Minutenkonto von ${state.selectedChild} abgezogen.`);
+  rewardText.textContent = `${formatMinutes(available)} wurden für ${state.selectedChild} eingelöst.`;
+  overlayMessage.textContent = "Die Lernstatistik bleibt erhalten. Nur das verfügbare Minutenkonto dieses Kindes wurde zurückgesetzt.";
+  updateStatus(`Einlösung bestätigt. ${formatMinutes(available)} wurden vom verfügbaren Minutenkonto von ${state.selectedChild} abgezogen.`);
 }
 
 function selectChild(name) {
@@ -972,7 +972,7 @@ function updateChildGrade() {
   profile.currentGrade = Math.min(profile.maxGrade, Math.max(profile.minGrade, nextGrade));
   saveProfiles();
   renderChildOptions();
-  updateStatus(`${state.selectedChild} ist jetzt fuer Aufgaben der ${profile.currentGrade}. Klasse freigegeben.`);
+  updateStatus(`${state.selectedChild} ist jetzt für Aufgaben der ${profile.currentGrade}. Klasse freigegeben.`);
 }
 
 function updateGrade1Settings() {
@@ -981,7 +981,7 @@ function updateGrade1Settings() {
   profile.grade1Operation = grade1OperationSelect.value || "mixed";
   saveProfiles();
   renderGrade1Settings();
-  updateStatus(`Die 1.-Klasse-Uebung fuer ${state.selectedChild} wurde angepasst.`);
+  updateStatus(`Die 1.-Klasse-Übung für ${state.selectedChild} wurde angepasst.`);
 }
 
 function createLocalApi() {
@@ -1071,7 +1071,7 @@ async function loadHistory() {
     renderHistory();
     setStorageMode("cloud");
   } catch (error) {
-    console.warn("Supabase noch nicht verfuegbar, lokaler Speicher bleibt aktiv.", error);
+    console.warn("Supabase noch nicht verfügbar, lokaler Speicher bleibt aktiv.", error);
     state.api = createLocalApi();
     setStorageMode("local");
   }
@@ -1122,7 +1122,7 @@ async function clearAppCacheAndReload() {
       await Promise.all(cacheKeys.map((key) => caches.delete(key)));
     }
   } catch (error) {
-    console.warn("Cache konnte nicht vollstaendig geleert werden.", error);
+    console.warn("Cache konnte nicht vollständig geleert werden.", error);
   }
 
   window.location.reload();
@@ -1161,7 +1161,7 @@ if (!state.profiles.some((profile) => profile.name === state.selectedChild)) {
 renderChildOptions();
 setSettingsLock(false);
 rewardText.textContent = "Ab der Zielquote werden Minuten gutgeschrieben. Je 10 Aufgaben gibt es 1 Minute.";
-overlayMessage.textContent = "Nach jeder erfolgreichen Runde werden Minuten gutgeschrieben. Fuer jedes 10. Mal 100% an einem Tag gibt es 2 Minuten Bonus.";
+overlayMessage.textContent = "Nach jeder erfolgreichen Runde werden Minuten gutgeschrieben. Für jedes 10. Mal 100 % an einem Tag gibt es 2 Minuten Bonus.";
 updatePotentialMinutes();
 void loadHistory();
 renderAppVersion();

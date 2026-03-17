@@ -146,6 +146,12 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.analytics-panel,
+.overview-panel,
+.version-panel {
+  grid-column: 1 / -1;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -438,7 +444,7 @@ h1 {
 
 .analytics-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 12px;
 }
 

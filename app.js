@@ -1,6 +1,6 @@
 const PARENT_PIN = "0922";
 const DEFAULT_REWARD_TARGET = 95;
-const APP_VERSION = "v2026.03.16-6";
+const APP_VERSION = "v2026.03.17-1";
 const STORAGE_KEY = "mathe-mission-state";
 const HISTORY_STORAGE_KEY = "mathe-mission-history";
 const REDEMPTION_STORAGE_KEY = "mathe-mission-redemptions";
@@ -288,6 +288,14 @@ function monthKey(value) {
 
 function childHistory() {
   return state.history.filter((entry) => (entry.child_name || DEFAULT_PROFILES[0].name) === state.selectedChild);
+}
+
+function perfectRoundsTodayCount() {
+  const todayKey = localDateKey(Date.now());
+  return childHistory().filter((entry) =>
+    localDateKey(entry.created_at) === todayKey &&
+    Number(entry.score_percent || 0) === 100
+  ).length;
 }
 
 function childRedemptions() {
@@ -844,7 +852,12 @@ function evaluateRound() {
   });
 
   const percent = Math.round((correct / state.questions.length) * 100);
-  const earnedMinutes = percent >= state.rewardTarget ? calculateEarnedMinutes(state.questions.length) : 0;
+  const baseMinutes = percent >= state.rewardTarget ? calculateEarnedMinutes(state.questions.length) : 0;
+  const bonusMinutes =
+    percent === 100 && (perfectRoundsTodayCount() + 1) % 10 === 0
+      ? 2
+      : 0;
+  const earnedMinutes = baseMinutes + bonusMinutes;
   void saveRoundResult(currentRoundPayload(correct, percent, earnedMinutes));
 
   correctCount.textContent = String(correct);
@@ -855,9 +868,15 @@ function evaluateRound() {
   nextRoundBtn.hidden = false;
 
   if (earnedMinutes > 0) {
-    rewardText.textContent = `${state.selectedChild} hat gerade ${formatMinutes(earnedMinutes)} gutgeschrieben bekommen.`;
-    overlayMessage.textContent = "Die Minuten bleiben angespart, bis ihr sie mit Elternfreigabe einloest.";
-    updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden ${state.selectedChild} gutgeschrieben.`);
+    if (bonusMinutes > 0) {
+      rewardText.textContent = `${state.selectedChild} hat gerade ${formatMinutes(earnedMinutes)} gutgeschrieben bekommen.`;
+      overlayMessage.textContent = "Bonus geschafft: Heute zum 10. Mal 100% erreicht. Es gibt 2,0 Minuten extra.";
+      updateStatus(`Perfekt. ${correct} von ${state.questions.length} richtig. ${formatMinutes(baseMinutes)} plus 2,0 Bonusminuten wurden ${state.selectedChild} gutgeschrieben.`);
+    } else {
+      rewardText.textContent = `${state.selectedChild} hat gerade ${formatMinutes(earnedMinutes)} gutgeschrieben bekommen.`;
+      overlayMessage.textContent = "Die Minuten bleiben angespart, bis ihr sie mit Elternfreigabe einloest.";
+      updateStatus(`Geschafft. ${correct} von ${state.questions.length} richtig. ${formatMinutes(earnedMinutes)} wurden ${state.selectedChild} gutgeschrieben.`);
+    }
   } else {
     rewardText.textContent = "Diese Runde war noch unter der Zielquote.";
     overlayMessage.textContent = `Es wurden keine Minuten gutgeschrieben. Noch einmal versuchen und mindestens ${state.rewardTarget}% erreichen.`;
@@ -1142,7 +1161,7 @@ if (!state.profiles.some((profile) => profile.name === state.selectedChild)) {
 renderChildOptions();
 setSettingsLock(false);
 rewardText.textContent = "Ab der Zielquote werden Minuten gutgeschrieben. Je 10 Aufgaben gibt es 1 Minute.";
-overlayMessage.textContent = "Neue Minuten werden nach jeder erfolgreichen Runde automatisch dem Tageskonto gutgeschrieben.";
+overlayMessage.textContent = "Nach jeder erfolgreichen Runde werden Minuten gutgeschrieben. Fuer jedes 10. Mal 100% an einem Tag gibt es 2 Minuten Bonus.";
 updatePotentialMinutes();
 void loadHistory();
 renderAppVersion();

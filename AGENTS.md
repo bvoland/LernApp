@@ -22,6 +22,7 @@
 - Medienzeit wird nicht direkt abgespielt, sondern als Minutenkonto gesammelt.
 - Es gilt: `10 Aufgaben = 1,0 Minute`.
 - Minuten werden nur gutgeschrieben, wenn die Rundenergebnisse mindestens die eingestellte Zielquote erreichen.
+- Fuer jedes `10.` Mal `100%` an einem einzelnen Kalendertag gibt es `2,0 Bonusminuten` extra.
 - Minuten koennen per Elternfreigabe eingeloest und dabei auf `0` gesetzt werden.
 - Lernhistorie und Statistik bleiben dabei erhalten.
 
